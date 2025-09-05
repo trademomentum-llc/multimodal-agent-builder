@@ -2,7 +2,7 @@ import helmet from 'helmet';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { Request, Response, NextFunction } from 'express';
-
+import sanitizeHtml from 'sanitize-html';
 // Security headers middleware
 export const securityMiddleware = helmet({
   // Disable Helmet's built-in CSP as we set a dynamic one with nonces below
@@ -106,11 +106,8 @@ export const sanitizeInput = (
   // Recursively sanitize object properties
   const sanitizeObject = (obj: any): any => {
     if (typeof obj === 'string') {
-      // Basic HTML/script tag removal
-      return obj
-        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-        .replace(/<[^>]*>/g, '')
-        .trim();
+      // Robust HTML/script tag removal using sanitize-html
+      return sanitizeHtml(obj, { allowedTags: [], allowedAttributes: {} }).trim();
     }
 
     if (Array.isArray(obj)) {
