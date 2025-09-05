@@ -1,0 +1,15 @@
+| Dataset Name              | HF Link                                               | Domain         | Use-case                           | Validation       | MOA Value Example              |
+|---------------------------|------------------------------------------------------|----------------|-------------------------------------|------------------|-------------------------------|
+| meddialog                 | https://huggingface.co/datasets/meddialog            | Dialogue       | Doctor-patient, AI assistant chat  | Peer-reviewed    | Motivation, Opportunity       |
+| mit-mimic-iv              | https://huggingface.co/datasets/mit-mimic-iv         | Clinical EHR   | Coding, ICU, reporting             | Strong/bench'd   | Opportunity, Ability          |
+| biobert-corpus            | https://huggingface.co/datasets/biomedical           | Literature     | Scientific Q&A, genomics           | Bench'd/cited    | Motivation, Ability           |
+| adv_glue                  | https://huggingface.co/datasets/adv_glue             | Adversarial    | Robust LLM, stress-testing         | SOTA taskbench   | MOA guides defense            |
+| MedNLI                    | https://huggingface.co/datasets/mednli               | Natural Lang   | Medical inference, NLI             | Peer-reviewed    | All (motivation for reason!)  |
+| MedMCQA                   | https://huggingface.co/datasets/medmcqa              | MCQA/Exam      | Med exam, competency               | Bench'd          | Motivation, Ability           |
+| hiv-qa                    | https://huggingface.co/datasets/hiv-qa               | HIV/biomedical | Targeted specialist QA             | Gold/test split  | Motivation, personalized      |
+| scifact                   | https://huggingface.co/datasets/scifact              | Sci fact check | Claim verification, challenge      | Peer-reviewed    | Motivation (curiosity/truth)  |
+| physionet                 | https://huggingface.co/datasets/physionet            | Health signals | Biosignals, prediction, time series | SOTA, validated  | Opportunity, Ability          |
+| pubmed-qa                 | https://huggingface.co/datasets/pubmed_qa            | Literature     | Evidence, citation, summary        | Bench'd, cited   | Motivation, Ability           |
+
+*All MOA Value fields describe the axis(es) the dataset best supports during LLM training or agentic usage.*
+
