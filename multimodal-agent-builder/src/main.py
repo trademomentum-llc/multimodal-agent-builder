@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
     api_keys = settings.validate_api_keys()
     # Do not log sensitive values!
     if isinstance(api_keys, dict):
-        print(f"API keys present: {list(api_keys.keys())}")
+        print(f"API keys configured: {len(api_keys)}")
     elif isinstance(api_keys, (list, tuple, set)):
         print(f"API keys present: {len(api_keys)} configured.")
     elif isinstance(api_keys, bool):
