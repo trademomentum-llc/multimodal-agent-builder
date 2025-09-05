@@ -2,6 +2,7 @@ import helmet from 'helmet';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { Request, Response, NextFunction } from 'express';
+import sanitizeHtml from 'sanitize-html';
 
 // Security headers middleware
 export const securityMiddleware = helmet({
@@ -106,16 +107,9 @@ export const sanitizeInput = (
   // Recursively sanitize object properties
   const sanitizeObject = (obj: any): any => {
     if (typeof obj === 'string') {
-      // Thoroughly remove all <script>...</script> tags and all other HTML tags in a loop until input is clean
-      let previous;
-      let current = obj;
-      do {
-        previous = current;
-        current = current
-          .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-          .replace(/<[^>]*>/g, '');
-      } while (current !== previous);
-      return current.trim();
+      // Use a well-tested library to strip all script tags and other HTML
+      const clean = sanitizeHtml(obj, { allowedTags: [], allowedAttributes: {} });
+      return clean.trim();
     }
 
     if (Array.isArray(obj)) {
