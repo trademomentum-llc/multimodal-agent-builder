@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     claude_model: str = Field(default="claude-3-opus-20240229", description="Claude model name")
     claude_max_tokens: int = Field(default=4096, description="Max tokens for Claude")
     claude_temperature: float = Field(default=0.7, ge=0.0, le=1.0)
-
+    
     # Application Settings
     app_name: str = Field(default="Multimodal Agent Builder")
     app_version: str = Field(default="0.1.0")

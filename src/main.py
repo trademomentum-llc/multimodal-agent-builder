@@ -9,6 +9,8 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Form, BackgroundTa
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel, Field
+from src.api.rag_api import router as rag_api_router
+app.include_router(rag_api_router)
 
 from config.config import settings
 _OTEL_AVAILABLE = True
