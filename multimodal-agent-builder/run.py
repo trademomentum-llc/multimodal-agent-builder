@@ -23,10 +23,10 @@ def main():
 
     # Check API keys
     api_keys = settings.validate_api_keys()
-    print("\n🔑 API Key Status:")
-    for provider, configured in api_keys.items():
-        status = "✅" if configured else "❌"
-        print(f"  {status} {provider.capitalize()}")
+    num_providers = len(api_keys)
+    num_configured = sum(1 for configured in api_keys.values() if configured)
+    print(f"\n🔑 API Key Status: {num_configured}/{num_providers} provider(s) configured.")
+
 
     print("\n📡 Server Configuration:")
     print(f"  Host: {settings.app_host}")
