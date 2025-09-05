@@ -26,7 +26,7 @@ def main():
     print("\n🔑 API Key Status:")
     for provider, configured in api_keys.items():
         status = "✅" if configured else "❌"
-        print(f"  {status} {provider.capitalize()}")
+        print(f"  {status} ******")
 
     print("\n📡 Server Configuration:")
     print(f"  Host: {settings.app_host}")
