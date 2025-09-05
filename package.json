@@ -5,5 +5,8 @@
     "postinstall": "npm run prettier && npm run lint:fix",
     "check:ts": "tsc --noEmit",
     "check": "npm run check:ts && eslint ."
-  }
+  },
+  "dependencies": {
+    "express-rate-limit": "^8.1.0"
+}
 }
