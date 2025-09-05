@@ -106,11 +106,16 @@ export const sanitizeInput = (
   // Recursively sanitize object properties
   const sanitizeObject = (obj: any): any => {
     if (typeof obj === 'string') {
-      // Basic HTML/script tag removal
-      return obj
-        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-        .replace(/<[^>]*>/g, '')
-        .trim();
+      // Thoroughly remove all <script>...</script> tags and all other HTML tags in a loop until input is clean
+      let previous;
+      let current = obj;
+      do {
+        previous = current;
+        current = current
+          .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+          .replace(/<[^>]*>/g, '');
+      } while (current !== previous);
+      return current.trim();
     }
 
     if (Array.isArray(obj)) {
