@@ -8,6 +8,7 @@ export const securityMiddleware = helmet({
   // Disable Helmet's built-in CSP as we set a dynamic one with nonces below
   contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
+  frameguard: { action: 'deny' },
   hsts: {
     maxAge: 31536000,
     includeSubDomains: true,
