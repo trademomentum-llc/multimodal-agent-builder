@@ -45,7 +45,7 @@ export class ThreatIntelligenceService {
 
     // XSS patterns
     {
-      pattern: /<script[^>]*>.*?<\/script>/i,
+      pattern: /<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/i,
       description: 'XSS script injection',
       threatLevel: 'high',
       scoreMultiplier: 2.5,
