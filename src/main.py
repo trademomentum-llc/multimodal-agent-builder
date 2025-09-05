@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
 
     # Check API keys
     api_keys = settings.validate_api_keys()
-    print(f"API Keys configured: {api_keys}")
+    print(f"API Keys successfully configured. ({len(api_keys)} keys)")
 
     yield
 
