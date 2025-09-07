@@ -7,6 +7,7 @@ import type { Express, RequestHandler } from 'express';
 import memoize from 'memoizee';
 import connectPg from 'connect-pg-simple';
 import { storage } from './storage';
+import lusca from 'lusca';
 
 if (!process.env.REPLIT_DOMAINS) {
   throw new Error('Environment variable REPLIT_DOMAINS not provided');
@@ -42,6 +43,16 @@ export function getSession() {
       maxAge: sessionTtl,
     },
   });
+}
+
+/**
+ * Returns the CSRF protection middleware.
+ * Should be used after getSession() in your Express app:
+ *   app.use(getSession());
+ *   app.use(getCsrfProtection());
+ */
+export function getCsrfProtection(): RequestHandler {
+  return lusca.csrf();
 }
 
 function updateUserSession(

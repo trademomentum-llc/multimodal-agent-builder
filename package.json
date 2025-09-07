@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "express-rate-limit": "^8.1.0",
-    "sanitize-html": "^2.17.0"
+    "sanitize-html": "^2.17.0",
+    "lusca": "^1.7.0"
 }
 }
