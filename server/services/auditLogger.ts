@@ -47,7 +47,7 @@ class AuditLogger {
       if (success) {
         console.log(logMessage);
       } else {
-        console.error(logMessage, error);
+        console.error("%s", logMessage, error);
       }
 
       // Additional security alerting for critical actions
