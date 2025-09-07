@@ -6,6 +6,7 @@ import session from 'express-session';
 import type { Express, RequestHandler } from 'express';
 import memoize from 'memoizee';
 import connectPg from 'connect-pg-simple';
+import rateLimit from 'express-rate-limit';
 import { storage } from './storage';
 import lusca from 'lusca';
 
@@ -76,6 +77,14 @@ async function upsertUser(claims: any) {
 }
 
 export async function setupAuth(app: Express) {
+  // Define a rate limiter for login/auth endpoints
+  const loginRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    standardHeaders: true, // Return rate limit info in the RateLimit-* headers
+    legacyHeaders: false, // Disable the X-RateLimit-* headers
+  });
+
   app.set('trust proxy', 1);
   app.use(getSession());
   app.use(passport.initialize());
@@ -109,21 +118,21 @@ export async function setupAuth(app: Express) {
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
-  app.get('/api/login', (req, res, next) => {
+  app.get('/api/login', loginRateLimiter, (req, res, next) => {
     passport.authenticate(`replitauth:${req.hostname}`, {
       prompt: 'login consent',
       scope: ['openid', 'email', 'profile', 'offline_access'],
     })(req, res, next);
   });
 
-  app.get('/api/callback', (req, res, next) => {
+  app.get('/api/callback', loginRateLimiter, (req, res, next) => {
     passport.authenticate(`replitauth:${req.hostname}`, {
       successReturnToOrRedirect: '/',
       failureRedirect: '/api/login',
     })(req, res, next);
   });
 
-  app.get('/api/logout', (req, res) => {
+  app.get('/api/logout', loginRateLimiter, (req, res) => {
     req.logout(() => {
       res.redirect(
         client.buildEndSessionUrl(config, {
