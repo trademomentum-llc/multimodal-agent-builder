@@ -997,7 +997,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           action: action,
         });
       } catch (error: any) {
-        console.error(`Error performing agent ${req.params.action}:`, error);
+        console.error('Error performing agent %s:', req.params.action, error);
         res
           .status(500)
           .json({ message: `Failed to ${req.params.action} agent` });
