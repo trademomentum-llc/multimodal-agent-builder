@@ -6,6 +6,7 @@ import session from 'express-session';
 import type { Express, RequestHandler } from 'express';
 import memoize from 'memoizee';
 import connectPg from 'connect-pg-simple';
+import rateLimit from 'express-rate-limit';
 import { storage } from './storage';
 import lusca from 'lusca';
 
@@ -77,6 +78,13 @@ async function upsertUser(claims: any) {
 
 export async function setupAuth(app: Express) {
   app.set('trust proxy', 1);
+
+  // Rate limiter for auth callback endpoint
+  const authCallbackLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 5, // limit each IP to 5 requests per windowMs
+    message: 'Too many authentication attempts, please try again later.',
+  });
   app.use(getSession());
   app.use(passport.initialize());
   app.use(passport.session());
@@ -116,7 +124,7 @@ export async function setupAuth(app: Express) {
     })(req, res, next);
   });
 
-  app.get('/api/callback', (req, res, next) => {
+  app.get('/api/callback', authCallbackLimiter, (req, res, next) => {
     passport.authenticate(`replitauth:${req.hostname}`, {
       successReturnToOrRedirect: '/',
       failureRedirect: '/api/login',
