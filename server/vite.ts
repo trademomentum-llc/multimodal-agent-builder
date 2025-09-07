@@ -27,6 +27,14 @@ export async function setupVite(app: Express, server: Server) {
     allowedHosts: true,
   };
 
+  // Limit requests to expensive Vite HTML transform route
+  const viteHtmlRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
   const vite = await createViteServer({
     ...viteConfig,
     configFile: false,
@@ -42,7 +50,7 @@ export async function setupVite(app: Express, server: Server) {
   });
 
   app.use(vite.middlewares);
-  app.use('*', async (req, res, next) => {
+  app.use('*', viteHtmlRateLimiter, async (req, res, next) => {
     const url = req.originalUrl;
 
     try {
