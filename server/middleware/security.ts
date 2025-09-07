@@ -5,8 +5,32 @@ import { Request, Response, NextFunction } from 'express';
 import sanitizeHtml from 'sanitize-html';
 // Security headers middleware
 export const securityMiddleware = helmet({
-  // Disable Helmet's built-in CSP as we set a dynamic one with nonces below
-  contentSecurityPolicy: false,
+  // Enable Helmet's built-in CSP and provide directives using res.locals.cspNonce
+  contentSecurityPolicy: {
+    useDefaults: true,
+    // Nonces provided in res.locals.cspNonce by cspWithNonce middleware
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: [
+        "'self'",
+        // dynamically add nonce for each request
+        (req, res) => `'nonce-${(res.locals as any).cspNonce}'`,
+        ...(process.env.NODE_ENV !== 'production' ? ["'unsafe-inline'"] : []),
+      ],
+      styleSrc: [
+        "'self'",
+        (req, res) => `'nonce-${(res.locals as any).cspNonce}'`,
+        "https://fonts.googleapis.com",
+        ...(process.env.NODE_ENV !== 'production' ? ["'unsafe-inline'"] : []),
+      ],
+      imgSrc: ["'self'", "data:", "https:"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      connectSrc: ["'self'", "ws:", "wss:"],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+    },
+  },
   crossOriginEmbedderPolicy: false,
   frameguard: { action: 'deny' },
   hsts: {
