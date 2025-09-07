@@ -1,5 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
+<<<<<<< HEAD
 import { threatIntelligenceService } from '../services/threatIntelligence';
+=======
+import { threatIntelligenceService } from '../services/threatIntelligenceService';
+>>>>>>> 9b0476f (Staged and commited updates to npm modules fixing vulnerabilities)
 import { auditLogger } from '../services/auditLogger';
 
 /**
