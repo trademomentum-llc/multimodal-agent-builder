@@ -9,11 +9,14 @@ const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
 
 if (endpoint) {
   try {
-    const traceExporter = new OTLPTraceExporter({ url: `${endpoint}/v1/traces` });
+    const traceExporter = new OTLPTraceExporter({
+      url: `${endpoint}/v1/traces`,
+    });
     const sdk = new NodeSDK({
       traceExporter,
       resource: new Resource({
-        [SemanticResourceAttributes.SERVICE_NAME]: 'multimodal-agent-builder-web',
+        [SemanticResourceAttributes.SERVICE_NAME]:
+          'multimodal-agent-builder-web',
       }),
       instrumentations: [getNodeAutoInstrumentations()],
     });
@@ -25,4 +28,3 @@ if (endpoint) {
     // never block startup due to telemetry
   }
 }
-

@@ -9,6 +9,7 @@
 - Application: AuthZ, RBAC, logging, RASP, WAF rules, rate limits. Action: added rate limit, payload limits, upload filters; CI scans.
 
 Hardening backlog:
+
 - Add `helmet` + CSP to `server`.
 - Strict origin allowlist per environment.
 - Structured audit logs to SIEM; anomaly alerts.

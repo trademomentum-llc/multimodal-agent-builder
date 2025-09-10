@@ -1,6 +1,7 @@
 # Health Insight: MOA-Guided Agentic AI System (Google Cloud)
 
 ## 1. System Overview
+
 - **Cloud Native:** Runs natively on Google Cloud (using Healthcare API, BigQuery, Vertex AI, Dataflow, etc.).
 - **Data Lake/Processing:** Medical, biomedical, coding, adversarial, and predictive/simulation data flow through a secure, compliant pipeline.
 - **LLM/GNN Core:** All ML/AI models (LLMs, biomedical transformers, adversarial and simulation modules) are trained with explicit MOA annotations.
@@ -32,16 +33,17 @@
 ```
 
 ## 3. MOA in Workflow
+
 - Motivation: Determines why actions/recommendations are taken (user/patient goal, urgency, safety, curiosity, compliance)
 - Opportunity: Only acts or prompts when timing/data/context permit action
 - Ability: Models, exposes, and scaffolds both user and system ability; offers alternatives and explanations at each step
 
 ## 4. Compliance & Security
+
 - Google Healthcare API: Native HIPAA support, auditable access, access policies (VPC Service Controls, IAM).
 - All agentic outputs/decisions retain explanations and reasoning for audit and/or clinical review.
 
 ## 5. Extensibility
+
 - Modular microservices and plug-in datasets (expand to new domains, new data types, agent roles)
 - Continuous learning: MOA states update from feedback/actions, improving future outputs/experience.
-
-

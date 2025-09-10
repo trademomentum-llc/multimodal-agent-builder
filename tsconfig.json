@@ -8,10 +8,7 @@
     "noImplicitThis": true,
     "strictNullChecks": true
   },
-  "include": [
-    "server/**/*.ts",
-    "shared/**/*.ts"
-  ],
+  "include": ["server/**/*.ts", "shared/**/*.ts"],
   "exclude": [
     "node_modules",
     "dist",

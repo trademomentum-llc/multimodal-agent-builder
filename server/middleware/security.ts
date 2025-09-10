@@ -20,12 +20,12 @@ export const securityMiddleware = helmet({
       styleSrc: [
         "'self'",
         (req, res) => `'nonce-${(res.locals as any).cspNonce}'`,
-        "https://fonts.googleapis.com",
+        'https://fonts.googleapis.com',
         ...(process.env.NODE_ENV !== 'production' ? ["'unsafe-inline'"] : []),
       ],
-      imgSrc: ["'self'", "data:", "https:"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      connectSrc: ["'self'", "ws:", "wss:"],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      connectSrc: ["'self'", 'ws:', 'wss:'],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
@@ -49,7 +49,11 @@ export const cspWithNonce = () => {
 
     const isDev = process.env.NODE_ENV !== 'production';
     const scriptSrc = ["'self'", `'nonce-${nonce}'`];
-    const styleSrc = ["'self'", `'nonce-${nonce}'`, 'https://fonts.googleapis.com'];
+    const styleSrc = [
+      "'self'",
+      `'nonce-${nonce}'`,
+      'https://fonts.googleapis.com',
+    ];
     const base = [
       `default-src 'self'`,
       `script-src ${scriptSrc.concat(isDev ? ["'unsafe-inline'"] : []).join(' ')}`,
@@ -131,7 +135,10 @@ export const sanitizeInput = (
   const sanitizeObject = (obj: any): any => {
     if (typeof obj === 'string') {
       // Robust HTML/script tag removal using sanitize-html
-      return sanitizeHtml(obj, { allowedTags: [], allowedAttributes: {} }).trim();
+      return sanitizeHtml(obj, {
+        allowedTags: [],
+        allowedAttributes: {},
+      }).trim();
     }
 
     if (Array.isArray(obj)) {
@@ -211,7 +218,7 @@ function parseSize(size: string): number {
   return Math.floor(value * (units[unit] || 1));
 }
 
-import "express-session";
+import 'express-session';
 
 declare global {
   namespace Express {
@@ -243,12 +250,12 @@ export const securityMiddleware = helmet({
       styleSrc: [
         "'self'",
         (req, res) => `'nonce-${(res.locals as any).cspNonce}'`,
-        "https://fonts.googleapis.com",
+        'https://fonts.googleapis.com',
         ...(process.env.NODE_ENV !== 'production' ? ["'unsafe-inline'"] : []),
       ],
-      imgSrc: ["'self'", "data:", "https:"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      connectSrc: ["'self'", "ws:", "wss:"],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      connectSrc: ["'self'", 'ws:', 'wss:'],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
@@ -272,7 +279,11 @@ export const cspWithNonce = () => {
 
     const isDev = process.env.NODE_ENV !== 'production';
     const scriptSrc = ["'self'", `'nonce-${nonce}'`];
-    const styleSrc = ["'self'", `'nonce-${nonce}'`, 'https://fonts.googleapis.com'];
+    const styleSrc = [
+      "'self'",
+      `'nonce-${nonce}'`,
+      'https://fonts.googleapis.com',
+    ];
     const base = [
       `default-src 'self'`,
       `script-src ${scriptSrc.concat(isDev ? ["'unsafe-inline'"] : []).join(' ')}`,
@@ -354,7 +365,10 @@ export const sanitizeInput = (
   const sanitizeObject = (obj: any): any => {
     if (typeof obj === 'string') {
       // Robust HTML/script tag removal using sanitize-html
-      return sanitizeHtml(obj, { allowedTags: [], allowedAttributes: {} }).trim();
+      return sanitizeHtml(obj, {
+        allowedTags: [],
+        allowedAttributes: {},
+      }).trim();
     }
 
     if (Array.isArray(obj)) {

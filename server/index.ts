@@ -1,9 +1,5 @@
 import './otel';
-<<<<<<< HEAD
-import express, { type Request, Response, NextFunction } from 'express';
-=======
 import express, { type Request, Response, NextFunction, Express } from 'express';
->>>>>>> 9b0476f (Staged and commited updates to npm modules fixing vulnerabilities)
 import { registerRoutes } from './routes';
 import { setupVite, serveStatic, log } from './vite';
 import { securityMiddleware, cspWithNonce } from './middleware/security';
@@ -73,20 +69,22 @@ app.use((req, res, next) => {
   server.listen(
 <<<<<<< HEAD
     {
-=======
-    { // @ts-ignore: Property 'listen' does not exist on type 'void'.
->>>>>>> 9b0476f (Staged and commited updates to npm modules fixing vulnerabilities)
-      port,
-      host: '0.0.0.0',
-      reusePort: true,
-    },
-    () => {
-      log(`serving on port ${port}`);
-    },
-  );
+const port = 5000;
+server.listen(
+  { // @ts-ignore: Property 'listen' does not exist on type 'void'.
+    port,
+    host: '0.0.0.0',
+    reusePort: true,
+  },
+  () => {
+    log(`serving on port ${port}`);
+  },
+);
+export async function registerRoutes(app: Express): Promise<Express> {
+  // Define your API routes here.
+  app.get('/api/health', (_req, res) => {
+    res.json({ status: 'ok' });
 })();
-<<<<<<< HEAD
-=======
 
 export async function registerRoutes(app: Express): Promise<Express> {
   // Define your API routes here.
@@ -95,4 +93,3 @@ export async function registerRoutes(app: Express): Promise<Express> {
   });
   return app;
 }
->>>>>>> 9b0476f (Staged and commited updates to npm modules fixing vulnerabilities)

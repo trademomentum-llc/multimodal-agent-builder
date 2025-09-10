@@ -70,7 +70,7 @@ _Are there similar features in other projects? Include links if available._
 - [ ] Enhances user experience
 - [ ] Enables new capabilities
 - [ ] Reduces complexity
-- [ ] Other: ****\_\_\_****
+- [ ] Other: \***\*\_\_\_\*\***
 
 ### Potential Drawbacks
 
