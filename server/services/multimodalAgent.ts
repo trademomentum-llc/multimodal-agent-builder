@@ -637,9 +637,9 @@ export class MultimodalAgentService {
         throw new Error('Failed to create or retrieve session');
       }
 
-      let processedInputs: any = { text: inputs.text };
-      let usedModalities: string[] = ['text'];
-      let files: MultimodalFile[] = [];
+      const processedInputs: any = { text: inputs.text };
+      const usedModalities: string[] = ['text'];
+      const files: MultimodalFile[] = [];
 
       // Process image if provided
       if (inputs.image && agent.enableVision) {

@@ -1,5 +1,10 @@
 import './otel';
-import express, { type Request, Response, NextFunction, Express } from 'express';
+import express, {
+  type Request,
+  Response,
+  NextFunction,
+  Express,
+} from 'express';
 import { registerRoutes } from './routes';
 import { setupVite, serveStatic, log } from './vite';
 import { securityMiddleware, cspWithNonce } from './middleware/security';
@@ -66,30 +71,7 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = 5000;
-  server.listen(
-<<<<<<< HEAD
-    {
-const port = 5000;
-server.listen(
-  { // @ts-ignore: Property 'listen' does not exist on type 'void'.
-    port,
-    host: '0.0.0.0',
-    reusePort: true,
-  },
-  () => {
+  server.listen(port, () => {
     log(`serving on port ${port}`);
-  },
-);
-export async function registerRoutes(app: Express): Promise<Express> {
-  // Define your API routes here.
-  app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok' });
-})();
-
-export async function registerRoutes(app: Express): Promise<Express> {
-  // Define your API routes here.
-  app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok' });
   });
-  return app;
-}
+})();

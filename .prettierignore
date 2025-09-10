@@ -1,0 +1,3 @@
+# Ignore auto-generated Polymer HTML file that breaks Prettier parser
+localized-narratives/index.html
+
