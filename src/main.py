@@ -1,7 +1,10 @@
 """Main FastAPI application for the Multimodal Agent Builder."""
 
 import asyncio
+import os
+import time
 import uuid
+from collections import defaultdict
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional, Union
 
@@ -9,8 +12,6 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Form, BackgroundTa
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel, Field
-from src.api.rag_api import router as rag_api_router
-app.include_router(rag_api_router)
 
 from config.config import settings
 _OTEL_AVAILABLE = True
@@ -30,8 +31,8 @@ from src.agents.agent_factory import AgentFactory, AgentType, LLMProvider
 from src.agents.base_agent import AgentResponse, BaseAgent
 from src.agents.multimodal_agent import MultimodalInput
 from src.api.training_endpoints import router as training_router
-import time
-from collections import defaultdict
+from src.api.council_api import router as council_router
+from src.api.rag_api import router as rag_api_router
 
 
 # Global agent storage (in production, use a database)
@@ -169,7 +170,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include training router
+# Include feature routers
+app.include_router(rag_api_router)
+app.include_router(council_router)
 app.include_router(training_router)
 
 
