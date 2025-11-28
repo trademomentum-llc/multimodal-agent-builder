@@ -20,12 +20,14 @@ import {
   Zap,
   ChevronLeft,
   ChevronRight,
+  Users,
 } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: Gauge },
   { name: 'Agent Factory', href: '/agents', icon: ServerCog },
   { name: 'Agent Library', href: '/library', icon: Library },
+  { name: 'Council Chat', href: '/council', icon: Users },
   { name: 'National Reserve', href: '/national-reserve', icon: Crown },
   { name: 'Data Flywheel', href: '/data-flywheel', icon: Zap },
   { name: 'Task Queue', href: '/tasks', icon: ListTodo },

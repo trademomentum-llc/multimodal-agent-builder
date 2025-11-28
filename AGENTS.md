@@ -1,40 +1,37 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-
-- Backend lives in `src`: `agents/` for agent types and factory wiring, `api/` for FastAPI routers (training, RAG), `models/` for schemas, and `utils/` for helpers; configuration defaults are in `config/`.
-- Frontend is a Vite React app rooted at `client/` (components, hooks, pages) with shared TypeScript helpers in `shared/` and assets in `attached_assets/`.
-- Tests sit in `tests/` with `unit/` and `reassembly/`; CLI helpers and runners are in `scripts/`, `run.py`, and `run_tests.py`.
-- Docs and examples live in `docs/`, `examples/`, and `projects/`.
+- `src/`: FastAPI app and agent logic (`agents/` for agent types, `api/` for routes, `models/` for schemas, `utils/` for helpers).
+- `config/`: Pydantic settings loaded from `.env` (API keys, rate limits, file limits, CORS).
+- `tests/`: Pytest suites (`unit/`, `reassembly/`, shared fixtures in `conftest.py`); coverage XML/HTML lives in `coverage.xml` and `htmlcov/`.
+- `client/`: Front-end scaffold (Vite/TypeScript) with `index.html` and `client/src` assets.
+- `scripts/`, `examples/`, `docs/`, `projects/`: utility runners, usage samples, docs, and experiment artifacts.
 
 ## Build, Test, and Development Commands
-
-- Install backend (dev): `python -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]"`.
-- Run API locally: `python run.py` (uses `src.main:app`; defaults set in `config/config.py` and `.env`).
-- Frontend dev server: `npm install` then `npm run dev -- --host --port 5173` from repo root (Vite uses `client/` root).
-- Type checking / lint (web): `npm run check` (tsc + eslint); `npm run prettier` for formatting.
-- Python quality: `ruff check src tests` and `black src tests` (line length 100); `mypy src` for type safety.
+- Install (dev): `python -m pip install --upgrade pip && pip install -e ".[dev]"`.
+- Run API locally: `uvicorn src.main:app --reload --host 0.0.0.0 --port 8000`.
+- Python checks: `ruff check src tests`, `mypy src`, `pytest -k "not old"` or `python run_tests.py all -v`.
+- Front-end/TypeScript checks: `npm install` then `npm run check` (tsc + eslint) or targeted `npm run check:ts`, `npm run lint:fix`, `npm run prettier`.
+- Security quick scan: `bandit -q -r src` (matches CI).
 
 ## Coding Style & Naming Conventions
-
-- Python: Black-formatted, Ruff-enforced; prefer typed functions, explicit imports, and `snake_case` modules, functions, and variables. Keep public API schemas in `models/` and avoid circular imports by using `typing.TYPE_CHECKING` when needed.
-- TypeScript/React: Follow ESLint/Prettier defaults; favor functional components and hooks, `PascalCase` for components, `camelCase` for props and utilities, and `kebab-case` filenames within `client/src`.
-- Config and secrets: never commit `.env`; sample values belong in `.env.example`.
+- Editor config: LF, UTF-8, spaces, 2-space indent.
+- Python: Black line length 100, type hints required (strict mypy); snake_case for functions/vars, PascalCase for classes. Keep FastAPI models lean and validated.
+- Linting: Ruff enforced in CI; fix before pushing. Avoid broad `except:`; log with context.
+- JS/TS: Prettier (printWidth 80, semicolons, single quotes, 2-space tabs) and ESLint (`@typescript-eslint`). Prefer typed APIs and descriptive prop/state names.
 
 ## Testing Guidelines
+- Use Pytest; tests live beside feature area under `tests/unit/...` with filenames `test_*.py`.
+- Default run is verbose with coverage (threshold 70% via `pytest.ini`); add markers (`@pytest.mark.api`, `@pytest.mark.agent`, `@pytest.mark.slow`) and select with `-m`.
+- For new features, include happy-path, failure, and edge cases; mock external LLMs/IO and avoid real network calls.
 
-- Primary framework: `pytest` with coverage (`pytest --cov=src --cov-report=term-missing`). Use `run_tests.py --test-type unit` for targeted runs.
-- Place fast deterministic tests in `tests/unit/`; longer flow/reassembly tests belong in `tests/reassembly/`.
-- Name tests with `test_<target>_behavior.py` and descriptive function names; add markers (`-m llm`, `-m training`) when behavior depends on external providers.
-- Aim to keep new code covered; prefer fixtures in `tests/conftest.py` to avoid duplication.
+## Security & Configuration
+- Never commit secrets; rely on `.env` (keys for OpenAI/Gemini/Anthropic, Redis URL, CORS, size limits). Validate via `config.settings`.
+- Respect payload limits and allowed file types defined in settings; keep new endpoints behind FastAPI validation and rate limiting hooks.
+- Provide sanitized sample payloads in docs/examples rather than real data.
 
 ## Commit & Pull Request Guidelines
-
-- Commit messages follow a lightweight conventional style (`feat:`, `fix:`, `chore:`, `docs:`); keep subjects in imperative mood and ≤72 chars (e.g., `fix: tighten rate limiter guard`).
-- PRs should summarize scope, note breaking changes, link issues, and include screenshots for UI changes or sample API payloads for backend changes. Mention required env vars or migrations explicitly.
-
-## Security & Configuration Tips
-
-- Required keys (OpenAI/Gemini/Anthropic) and optional Redis/PostgreSQL endpoints come from `.env`; validate with `settings.validate_api_keys()` logs at startup.
-- Respect `settings.max_file_size_bytes` and rate-limit knobs when adding endpoints; avoid widening CORS or logging secrets.
-- For telemetry, only enable OTLP exporters when the endpoint is configured; keep defaults safe for local development.
+- Commits: short imperative summary (e.g., `Add rate limiter metrics`), reference issues (`#123`) when applicable.
+- Before PR: run `ruff`, `mypy`, `pytest`, `npm run check` (if you touched TypeScript/JS). Ensure coverage stays above threshold.
+- PR description: what changed, why, how to test (commands run). Link related issues and include screenshots/GIFs for UI updates in `client/`.
+- Keep changes scoped; prefer small, reviewable PRs and note any breaking API changes or migrations.

@@ -15,6 +15,7 @@ import Security from '@/pages/Security';
 import Settings from '@/pages/Settings';
 import NationalReserve from '@/pages/NationalReserve';
 import DataFlywheel from '@/pages/DataFlywheel';
+import CouncilChat from '@/pages/CouncilChat';
 import NotFound from '@/pages/not-found';
 
 function Router() {
@@ -36,6 +37,7 @@ function Router() {
           <Route path="/settings" component={Settings} />
           <Route path="/national-reserve" component={NationalReserve} />
           <Route path="/data-flywheel" component={DataFlywheel} />
+          <Route path="/council" component={CouncilChat} />
         </>
       )}
       <Route component={NotFound} />

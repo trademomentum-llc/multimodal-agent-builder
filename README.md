@@ -57,6 +57,27 @@ Four-tier memory system for sophisticated reasoning:
 - **Episodic Memory**: Timestamped interaction history
 - **Semantic Memory**: Extracted patterns and learnings
 
+| Agent Type | Purpose | Key Features |
+|------------|---------|--------------|
+| **SimpleAgent** | Basic conversational AI | Lightweight, fast responses |
+| **MultimodalAgent** | Full multimodal processing | Text, image, audio support |
+| **LangChainAgent** | Advanced workflows | Tool integration, ReAct pattern |
+| **GuardianAgent** | Safety & ethics monitoring | Content filtering, ethical AI |
+| **CodingAgent** | Code execution & databases | SQL queries, code analysis |
+| **DataAnalysisAgent** | Data processing | Pandas integration, analytics |
+| **SearchReplaceAgent** | Text manipulation | Advanced search/replace |
+| **DataManagementAgent** | Data operations | CRUD operations, validation |
+| **DataFiltrationAgent** | Data filtering | Quality checks, cleansing |
+
+### 🧠 Advanced Memory Management
+
+Four-tier memory system for sophisticated reasoning:
+
+- **Short-term Memory**: Recent conversation context (configurable window)
+- **Long-term Memory**: Persistent knowledge storage
+- **Episodic Memory**: Timestamped interaction history
+- **Semantic Memory**: Extracted patterns and learnings
+
 ### 🎨 Multimodal Capabilities
 
 Process multiple input types simultaneously:
@@ -173,6 +194,91 @@ uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 
 The API will be available at:
 
+- **API**: http://localhost:8000
+- **Interactive Docs**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+
+---
+
+## 💡 Usage Examples
+
+### Example 1: Create and Use a Simple Agent
+
+```python
+import httpx
+import asyncio
+
+async def main():
+    async with httpx.AsyncClient() as client:
+        # Create an agent
+        response = await client.post(
+            "http://localhost:8000/agents",
+            json={
+                "name": "MyAssistant",
+                "agent_type": "multimodal",
+                "llm_provider": "openai",
+                "model": "gpt-4",
+                "temperature": 0.7
+            }
+        )
+        agent = response.json()
+        agent_id = agent["id"]
+
+        # Chat with the agent
+        chat_response = await client.post(
+            f"http://localhost:8000/agents/{agent_id}/chat",
+            json={"message": "Explain quantum computing in simple terms"}
+        )
+        print(chat_response.json())
+
+asyncio.run(main())
+```
+
+### Example 2: Process Image with Vision
+
+# For development
+pip install -e ".[dev]"
+```
+
+### 2. Configuration
+
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Edit .env and add your API keys
+nano .env  # or use your preferred editor
+```
+
+Required environment variables:
+```env
+# LLM Provider API Keys (at least one required)
+OPENAI_API_KEY=your_openai_key
+GEMINI_API_KEY=your_gemini_key
+ANTHROPIC_API_KEY=your_anthropic_key
+
+# Optional: Advanced features
+REDIS_URL=redis://localhost:6379
+DATABASE_URL=postgresql://user:pass@localhost/dbname
+
+# Optional: Rate limiting
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_REQUESTS=100
+RATE_LIMIT_PERIOD=60
+
+# Optional: Security
+CORS_ALLOWED_ORIGINS=http://localhost:3000,https://your-app.com
+MAX_FILE_SIZE_MB=10
+```
+
+### 3. Run the Server
+
+```bash
+# Start the API server
+uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+The API will be available at:
 - **API**: http://localhost:8000
 - **Interactive Docs**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
@@ -513,22 +619,22 @@ multimodal-agent-builder/
 
 ### Environment Variables
 
-| Variable               | Description           | Default        | Required                      |
-| ---------------------- | --------------------- | -------------- | ----------------------------- |
-| `OPENAI_API_KEY`       | OpenAI API key        | -              | If using OpenAI               |
-| `GEMINI_API_KEY`       | Google Gemini API key | -              | If using Gemini               |
-| `ANTHROPIC_API_KEY`    | Anthropic API key     | -              | If using Claude               |
-| `RATE_LIMIT_ENABLED`   | Enable rate limiting  | `false`        | No                            |
-| `RATE_LIMIT_REQUESTS`  | Requests per period   | `100`          | No                            |
-| `RATE_LIMIT_PERIOD`    | Period in seconds     | `60`           | No                            |
-| `REDIS_URL`            | Redis connection URL  | -              | For distributed rate limiting |
-| `DATABASE_URL`         | PostgreSQL connection | -              | For RAG features              |
-| `CORS_ALLOWED_ORIGINS` | Allowed CORS origins  | `*`            | No                            |
-| `MAX_FILE_SIZE_MB`     | Max upload size       | `10`           | No                            |
-| `ALLOWED_IMAGE_TYPES`  | Image MIME types      | Standard types | No                            |
-| `ALLOWED_AUDIO_TYPES`  | Audio MIME types      | Standard types | No                            |
-| `LOG_LEVEL`            | Logging level         | `INFO`         | No                            |
-| `ENVIRONMENT`          | Environment name      | `development`  | No                            |
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `OPENAI_API_KEY` | OpenAI API key | - | If using OpenAI |
+| `GEMINI_API_KEY` | Google Gemini API key | - | If using Gemini |
+| `ANTHROPIC_API_KEY` | Anthropic API key | - | If using Claude |
+| `RATE_LIMIT_ENABLED` | Enable rate limiting | `false` | No |
+| `RATE_LIMIT_REQUESTS` | Requests per period | `100` | No |
+| `RATE_LIMIT_PERIOD` | Period in seconds | `60` | No |
+| `REDIS_URL` | Redis connection URL | - | For distributed rate limiting |
+| `DATABASE_URL` | PostgreSQL connection | - | For RAG features |
+| `CORS_ALLOWED_ORIGINS` | Allowed CORS origins | `*` | No |
+| `MAX_FILE_SIZE_MB` | Max upload size | `10` | No |
+| `ALLOWED_IMAGE_TYPES` | Image MIME types | Standard types | No |
+| `ALLOWED_AUDIO_TYPES` | Audio MIME types | Standard types | No |
+| `LOG_LEVEL` | Logging level | `INFO` | No |
+| `ENVIRONMENT` | Environment name | `development` | No |
 
 ### Model Configuration
 
@@ -641,7 +747,7 @@ services:
   api:
     build: .
     ports:
-      - '8000:8000'
+      - "8000:8000"
     env_file:
       - .env
     depends_on:
@@ -651,7 +757,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - '6379:6379'
+      - "6379:6379"
 
   postgres:
     image: postgres:15-alpine
@@ -659,7 +765,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: multimodal_agents
     ports:
-      - '5432:5432'
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -919,4 +1025,4 @@ If you find this project useful, please consider giving it a star ⭐️
 
 **Status**: Active Development | **Version**: 0.1.0 | **License**: MIT
 
-_Built with ❤️ for the AI community_
+*Built with ❤️ for the AI community*
