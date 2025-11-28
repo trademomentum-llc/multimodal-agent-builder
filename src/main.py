@@ -1,16 +1,25 @@
 """Main FastAPI application for the Multimodal Agent Builder."""
 
 import asyncio
+import os
 import uuid
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, BackgroundTasks, status, Request
+from fastapi import (
+    BackgroundTasks,
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
-from src.api.rag_api import router as rag_api_router
-app.include_router(rag_api_router)
 
 from config.config import settings
 _OTEL_AVAILABLE = True
@@ -29,13 +38,46 @@ except Exception:  # pragma: no cover
 from src.agents.agent_factory import AgentFactory, AgentType, LLMProvider
 from src.agents.base_agent import AgentResponse, BaseAgent
 from src.agents.multimodal_agent import MultimodalInput
+from src.api.auth import router as auth_router
+from src.api.evaluations import router as evaluations_router
+from src.api.rag_api import router as rag_api_router
 from src.api.training_endpoints import router as training_router
+from src.utils.auth_utils import verify_api_key_token
 import time
 from collections import defaultdict
 
 
 # Global agent storage (in production, use a database)
 agent_store: Dict[str, BaseAgent] = {}
+_agent_cleanup_task: Optional[asyncio.Task] = None
+
+
+def prune_stale_agents(force: bool = False) -> int:
+    """Remove agents that have been idle longer than the configured TTL."""
+    removed = 0
+    cutoff = datetime.utcnow() - timedelta(seconds=settings.agent_idle_timeout_seconds)
+    for agent_id, agent in list(agent_store.items()):
+        try:
+            last_active = getattr(agent, "last_activity", agent.created_at)
+        except Exception:
+            last_active = datetime.utcnow()
+        if force or last_active < cutoff:
+            agent_store.pop(agent_id, None)
+            removed += 1
+    return removed
+
+
+async def agent_cleanup_loop() -> None:
+    """Background task to periodically prune idle agents."""
+    try:
+        while True:
+            await asyncio.sleep(settings.agent_cleanup_interval_seconds)
+            removed = prune_stale_agents()
+            if removed:
+                print(f"Agent cleanup removed {removed} idle agents")
+    except asyncio.CancelledError:
+        # Shutdown path
+        return
 
 
 @asynccontextmanager
@@ -49,12 +91,22 @@ async def lifespan(app: FastAPI):
     api_keys = settings.validate_api_keys()
     print(f"API Keys successfully configured. ({len(api_keys)} keys)")
 
+    # Start background agent cleanup loop
+    global _agent_cleanup_task
+    _agent_cleanup_task = asyncio.create_task(agent_cleanup_loop())
+
     yield
 
     # Shutdown
     print("Shutting down application...")
     # Clean up agents
     agent_store.clear()
+    if _agent_cleanup_task:
+        _agent_cleanup_task.cancel()
+        try:
+            await _agent_cleanup_task
+        except asyncio.CancelledError:
+            pass
 
 
 # Initialize FastAPI app
@@ -99,6 +151,7 @@ _init_otel(app)
 # Basic security middleware: rate limiting and payload size guard
 _rate_window_starts_at = 0.0
 _rate_counts = defaultdict(int)
+_auth_whitelist_paths = {"/", "/health", "/docs", "/redoc", "/openapi.json"}
 
 
 @app.middleware("http")
@@ -159,6 +212,39 @@ async def security_middleware(request: Request, call_next):
     response = await call_next(request)
     return response
 
+
+@app.middleware("http")
+async def api_key_middleware(request: Request, call_next):
+    """Enforce bearer API key authentication for protected routes."""
+    if not settings.require_api_key:
+        return await call_next(request)
+
+    path = request.url.path
+    if path in _auth_whitelist_paths or path.startswith(("/auth", "/docs", "/openapi")):
+        return await call_next(request)
+
+    # Only guard API-like routes; static asset paths can be exempted as needed
+    if not path.startswith(("/agents", "/training", "/rag", "/evaluations", "/quick-start")):
+        return await call_next(request)
+
+    auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+    if not auth_header or not auth_header.lower().startswith("bearer "):
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"detail": "Missing or invalid Authorization header"},
+        )
+
+    token = auth_header.split(" ", 1)[1].strip()
+    try:
+        verify_api_key_token(token)
+    except Exception as exc:
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"detail": f"Unauthorized: {exc}"},
+        )
+
+    return await call_next(request)
+
 # Add CORS middleware (tightened via settings)
 cors_origins = settings.allowed_origins
 app.add_middleware(
@@ -169,8 +255,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include training router
+# Include routers
+app.include_router(auth_router)
 app.include_router(training_router)
+app.include_router(rag_api_router)
+app.include_router(evaluations_router)
 
 
 # Request/Response Models
@@ -425,6 +514,13 @@ async def delete_agent(agent_id: str):
 
     del agent_store[agent_id]
     return {"message": f"Agent {agent_id} deleted successfully"}
+
+
+@app.delete("/agents", tags=["Agents"])
+async def delete_stale_agents(force: bool = False):
+    """Delete stale agents or force-remove all."""
+    removed = prune_stale_agents(force=force)
+    return {"message": f"Removed {removed} agent(s)", "force": force}
 
 
 @app.post("/agents/{agent_id}/chat", response_model=AgentResponse, tags=["Agent Interaction"])

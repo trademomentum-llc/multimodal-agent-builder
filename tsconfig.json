@@ -13,7 +13,8 @@
     "strictNullChecks": false,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["node"]
+    "types": ["node"],
+    "typeRoots": ["./types", "./node_modules/@types"]
   },
   "include": ["server/**/*.ts", "shared/**/*.ts", "vite.config.ts"],
   "exclude": [

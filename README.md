@@ -36,17 +36,17 @@ The unified client abstraction means you can change providers without rewriting 
 
 Choose the right agent for your use case:
 
-| Agent Type | Purpose | Key Features |
-|------------|---------|--------------|
-| **SimpleAgent** | Basic conversational AI | Lightweight, fast responses |
-| **MultimodalAgent** | Full multimodal processing | Text, image, audio support |
-| **LangChainAgent** | Advanced workflows | Tool integration, ReAct pattern |
-| **GuardianAgent** | Safety & ethics monitoring | Content filtering, ethical AI |
-| **CodingAgent** | Code execution & databases | SQL queries, code analysis |
-| **DataAnalysisAgent** | Data processing | Pandas integration, analytics |
-| **SearchReplaceAgent** | Text manipulation | Advanced search/replace |
-| **DataManagementAgent** | Data operations | CRUD operations, validation |
-| **DataFiltrationAgent** | Data filtering | Quality checks, cleansing |
+| Agent Type              | Purpose                    | Key Features                    |
+| ----------------------- | -------------------------- | ------------------------------- |
+| **SimpleAgent**         | Basic conversational AI    | Lightweight, fast responses     |
+| **MultimodalAgent**     | Full multimodal processing | Text, image, audio support      |
+| **LangChainAgent**      | Advanced workflows         | Tool integration, ReAct pattern |
+| **GuardianAgent**       | Safety & ethics monitoring | Content filtering, ethical AI   |
+| **CodingAgent**         | Code execution & databases | SQL queries, code analysis      |
+| **DataAnalysisAgent**   | Data processing            | Pandas integration, analytics   |
+| **SearchReplaceAgent**  | Text manipulation          | Advanced search/replace         |
+| **DataManagementAgent** | Data operations            | CRUD operations, validation     |
+| **DataFiltrationAgent** | Data filtering             | Quality checks, cleansing       |
 
 ### 🧠 Advanced Memory Management
 
@@ -143,6 +143,7 @@ nano .env  # or use your preferred editor
 ```
 
 Required environment variables:
+
 ```env
 # LLM Provider API Keys (at least one required)
 OPENAI_API_KEY=your_openai_key
@@ -171,6 +172,7 @@ uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 The API will be available at:
+
 - **API**: http://localhost:8000
 - **Interactive Docs**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
@@ -397,6 +399,7 @@ curl -X POST "http://localhost:8000/agents" \
 ```
 
 Response:
+
 ```json
 {
   "id": "agent_abc123",
@@ -510,22 +513,22 @@ multimodal-agent-builder/
 
 ### Environment Variables
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `OPENAI_API_KEY` | OpenAI API key | - | If using OpenAI |
-| `GEMINI_API_KEY` | Google Gemini API key | - | If using Gemini |
-| `ANTHROPIC_API_KEY` | Anthropic API key | - | If using Claude |
-| `RATE_LIMIT_ENABLED` | Enable rate limiting | `false` | No |
-| `RATE_LIMIT_REQUESTS` | Requests per period | `100` | No |
-| `RATE_LIMIT_PERIOD` | Period in seconds | `60` | No |
-| `REDIS_URL` | Redis connection URL | - | For distributed rate limiting |
-| `DATABASE_URL` | PostgreSQL connection | - | For RAG features |
-| `CORS_ALLOWED_ORIGINS` | Allowed CORS origins | `*` | No |
-| `MAX_FILE_SIZE_MB` | Max upload size | `10` | No |
-| `ALLOWED_IMAGE_TYPES` | Image MIME types | Standard types | No |
-| `ALLOWED_AUDIO_TYPES` | Audio MIME types | Standard types | No |
-| `LOG_LEVEL` | Logging level | `INFO` | No |
-| `ENVIRONMENT` | Environment name | `development` | No |
+| Variable               | Description           | Default        | Required                      |
+| ---------------------- | --------------------- | -------------- | ----------------------------- |
+| `OPENAI_API_KEY`       | OpenAI API key        | -              | If using OpenAI               |
+| `GEMINI_API_KEY`       | Google Gemini API key | -              | If using Gemini               |
+| `ANTHROPIC_API_KEY`    | Anthropic API key     | -              | If using Claude               |
+| `RATE_LIMIT_ENABLED`   | Enable rate limiting  | `false`        | No                            |
+| `RATE_LIMIT_REQUESTS`  | Requests per period   | `100`          | No                            |
+| `RATE_LIMIT_PERIOD`    | Period in seconds     | `60`           | No                            |
+| `REDIS_URL`            | Redis connection URL  | -              | For distributed rate limiting |
+| `DATABASE_URL`         | PostgreSQL connection | -              | For RAG features              |
+| `CORS_ALLOWED_ORIGINS` | Allowed CORS origins  | `*`            | No                            |
+| `MAX_FILE_SIZE_MB`     | Max upload size       | `10`           | No                            |
+| `ALLOWED_IMAGE_TYPES`  | Image MIME types      | Standard types | No                            |
+| `ALLOWED_AUDIO_TYPES`  | Audio MIME types      | Standard types | No                            |
+| `LOG_LEVEL`            | Logging level         | `INFO`         | No                            |
+| `ENVIRONMENT`          | Environment name      | `development`  | No                            |
 
 ### Model Configuration
 
@@ -638,7 +641,7 @@ services:
   api:
     build: .
     ports:
-      - "8000:8000"
+      - '8000:8000'
     env_file:
       - .env
     depends_on:
@@ -648,7 +651,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - '6379:6379'
 
   postgres:
     image: postgres:15-alpine
@@ -656,7 +659,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: multimodal_agents
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -916,4 +919,4 @@ If you find this project useful, please consider giving it a star ⭐️
 
 **Status**: Active Development | **Version**: 0.1.0 | **License**: MIT
 
-*Built with ❤️ for the AI community*
+_Built with ❤️ for the AI community_

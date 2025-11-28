@@ -35,6 +35,8 @@
   "dependencies": {
     "express-rate-limit": "^8.1.0",
     "lusca": "^1.7.0",
+    "pandas": "^0.0.3",
+    "pydantic": "^0.0.1-security",
     "sanitize-html": "^2.17.0"
   }
 }
