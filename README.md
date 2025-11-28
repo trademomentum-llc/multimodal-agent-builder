@@ -36,6 +36,27 @@ The unified client abstraction means you can change providers without rewriting 
 
 Choose the right agent for your use case:
 
+| Agent Type              | Purpose                    | Key Features                    |
+| ----------------------- | -------------------------- | ------------------------------- |
+| **SimpleAgent**         | Basic conversational AI    | Lightweight, fast responses     |
+| **MultimodalAgent**     | Full multimodal processing | Text, image, audio support      |
+| **LangChainAgent**      | Advanced workflows         | Tool integration, ReAct pattern |
+| **GuardianAgent**       | Safety & ethics monitoring | Content filtering, ethical AI   |
+| **CodingAgent**         | Code execution & databases | SQL queries, code analysis      |
+| **DataAnalysisAgent**   | Data processing            | Pandas integration, analytics   |
+| **SearchReplaceAgent**  | Text manipulation          | Advanced search/replace         |
+| **DataManagementAgent** | Data operations            | CRUD operations, validation     |
+| **DataFiltrationAgent** | Data filtering             | Quality checks, cleansing       |
+
+### 🧠 Advanced Memory Management
+
+Four-tier memory system for sophisticated reasoning:
+
+- **Short-term Memory**: Recent conversation context (configurable window)
+- **Long-term Memory**: Persistent knowledge storage
+- **Episodic Memory**: Timestamped interaction history
+- **Semantic Memory**: Extracted patterns and learnings
+
 | Agent Type | Purpose | Key Features |
 |------------|---------|--------------|
 | **SimpleAgent** | Basic conversational AI | Lightweight, fast responses |
@@ -127,6 +148,93 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 # Install dependencies
 pip install --upgrade pip
 pip install -e .
+
+# For development
+pip install -e ".[dev]"
+```
+
+### 2. Configuration
+
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Edit .env and add your API keys
+nano .env  # or use your preferred editor
+```
+
+Required environment variables:
+
+```env
+# LLM Provider API Keys (at least one required)
+OPENAI_API_KEY=your_openai_key
+GEMINI_API_KEY=your_gemini_key
+ANTHROPIC_API_KEY=your_anthropic_key
+
+# Optional: Advanced features
+REDIS_URL=redis://localhost:6379
+DATABASE_URL=postgresql://user:pass@localhost/dbname
+
+# Optional: Rate limiting
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_REQUESTS=100
+RATE_LIMIT_PERIOD=60
+
+# Optional: Security
+CORS_ALLOWED_ORIGINS=http://localhost:3000,https://your-app.com
+MAX_FILE_SIZE_MB=10
+```
+
+### 3. Run the Server
+
+```bash
+# Start the API server
+uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+The API will be available at:
+
+- **API**: http://localhost:8000
+- **Interactive Docs**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+
+---
+
+## 💡 Usage Examples
+
+### Example 1: Create and Use a Simple Agent
+
+```python
+import httpx
+import asyncio
+
+async def main():
+    async with httpx.AsyncClient() as client:
+        # Create an agent
+        response = await client.post(
+            "http://localhost:8000/agents",
+            json={
+                "name": "MyAssistant",
+                "agent_type": "multimodal",
+                "llm_provider": "openai",
+                "model": "gpt-4",
+                "temperature": 0.7
+            }
+        )
+        agent = response.json()
+        agent_id = agent["id"]
+
+        # Chat with the agent
+        chat_response = await client.post(
+            f"http://localhost:8000/agents/{agent_id}/chat",
+            json={"message": "Explain quantum computing in simple terms"}
+        )
+        print(chat_response.json())
+
+asyncio.run(main())
+```
+
+### Example 2: Process Image with Vision
 
 # For development
 pip install -e ".[dev]"
@@ -397,6 +505,7 @@ curl -X POST "http://localhost:8000/agents" \
 ```
 
 Response:
+
 ```json
 {
   "id": "agent_abc123",

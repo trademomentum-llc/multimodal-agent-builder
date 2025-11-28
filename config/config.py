@@ -74,6 +74,24 @@ class Settings(BaseSettings):
     )
     max_concurrent_agents: int = Field(default=10, ge=1, le=100)
     enable_agent_memory: bool = Field(default=True)
+    agent_idle_timeout_seconds: int = Field(
+        default=3600,
+        ge=60,
+        le=86400,
+        description="Max idle time before agents are cleaned up",
+    )
+    agent_cleanup_interval_seconds: int = Field(
+        default=300,
+        ge=30,
+        le=3600,
+        description="Interval between agent cleanup sweeps",
+    )
+
+    # API Key Settings
+    require_api_key: bool = Field(
+        default=False,
+        description="Require API key auth for protected endpoints",
+    )
 
     @field_validator("log_level")
     @classmethod
