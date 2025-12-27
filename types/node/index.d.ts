@@ -1,10 +1,10 @@
 // Minimal Node stubs for local type checking when @types/node is unavailable.
 
-declare var process: any;
-declare var __dirname: string;
-declare var module: any;
-declare var require: any;
-declare var exports: any;
+declare let process: any;
+declare let __dirname: string;
+declare let module: any;
+declare let require: any;
+declare let exports: any;
 
 declare module 'path' {
   const anything: any;
