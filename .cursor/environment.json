@@ -1,0 +1,6 @@
+{
+  "snapshot": "snapshot-20251227-fe45d9e7-5904-4387-a47c-4c5a56e60b0e",
+  "terminals": [],
+  "install": "socket npm install",
+  "start": "socket npm run dev"
+}
