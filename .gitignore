@@ -31,6 +31,10 @@ dist/
 build/
 *.egg-info/
 
+# Claude Code session artifacts
+.remember/
+.superpowers/
+
 # Ignore original large data files (use chunks instead)
 train-test-validate/ML-Testing/open_images_test_asr.jsonl
 train-test-validate/ML-Testing/open_images_test_localized_narratives.jsonl
