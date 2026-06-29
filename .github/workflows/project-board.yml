@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: Add to GitHub Project
         # Pinned to commit SHA for supply-chain security (v0.6.0 equivalent)
-        uses: actions/add-to-project@244f685bbc3b7adfa8466e08b698b5577571133e # v1.0.2 (updated & pinned)
+        uses: actions/add-to-project@5afcf98fcd03f1c2f92c3c83f58ae24323cc57fd # v1.0.2 (updated & pinned)
         with:
           project-url: ${{ secrets.PROJECT_URL }}
           github-token: ${{ secrets.PROJECTS_TOKEN }}
