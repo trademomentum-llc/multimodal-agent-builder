@@ -15,7 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Add to GitHub Project
-        uses: actions/add-to-project@v0.6.0
+        # Pinned to commit SHA for supply-chain security (v0.6.0 equivalent)
+        uses: actions/add-to-project@244f685bbc3b7adfa8466e08b698b5577571133e # v1.0.2 (updated & pinned)
         with:
           project-url: ${{ secrets.PROJECT_URL }}
           github-token: ${{ secrets.PROJECTS_TOKEN }}
