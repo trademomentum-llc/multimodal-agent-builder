@@ -22,18 +22,18 @@
     "@types/sanitize-html": "^2.11.0",
     "@types/speakeasy": "^2.0.10",
     "@types/ws": "^8.5.10",
-    "@typescript-eslint/eslint-plugin": "^6.9.0",
-    "@typescript-eslint/parser": "^6.9.0",
+    "@typescript-eslint/eslint-plugin": "^8.62.0",
+    "@typescript-eslint/parser": "^8.62.0",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-react": "^7.37.5",
     "globals": "^16.4.0",
     "prettier": "^3.6.2",
     "typescript": "^5.4.5",
-    "typescript-eslint": "^8.43.0"
+    "typescript-eslint": "^8.62.0"
   },
   "dependencies": {
-    "express-rate-limit": "^8.1.0",
+    "express-rate-limit": "^8.1.1",
     "lusca": "^1.7.0",
     "pandas": "^0.0.3",
     "pydantic": "^0.0.1-security",
