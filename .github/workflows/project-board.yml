@@ -8,15 +8,18 @@ on:
 
 jobs:
   add-to-project:
-    if: ${{ secrets.PROJECT_URL != '' && secrets.PROJECTS_TOKEN != '' }}
     permissions:
       contents: read
       issues: write
       pull-requests: write
     runs-on: ubuntu-latest
+    env:
+      PROJECT_URL: ${{ secrets.PROJECT_URL }}
+      PROJECTS_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
     steps:
       - name: Add to GitHub Project
+        if: ${{ env.PROJECT_URL != '' && env.PROJECTS_TOKEN != '' }}
         uses: actions/add-to-project@5afcf98fcd03f1c2f92c3c83f58ae24323cc57fd
         with:
-          project-url: ${{ secrets.PROJECT_URL }}
-          github-token: ${{ secrets.PROJECTS_TOKEN }}
+          project-url: ${{ env.PROJECT_URL }}
+          github-token: ${{ env.PROJECTS_TOKEN }}
