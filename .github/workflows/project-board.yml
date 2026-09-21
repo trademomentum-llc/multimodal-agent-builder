@@ -8,6 +8,7 @@ on:
 
 jobs:
   add-to-project:
+    if: ${{ secrets.PROJECT_URL != '' && secrets.PROJECTS_TOKEN != '' }}
     permissions:
       contents: read
       issues: write
