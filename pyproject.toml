@@ -2,7 +2,7 @@
 name = "multimodal-agent-builder"
 version = "0.1.0"
 description = "A multimodal AI agent builder supporting OpenAI GPT-4, Google Gemini, and Anthropic Claude"
-authors = [{name = "J.M.Jarmacz", email = "[EMAIL_ADDRESS]"}]
+authors = [{name = "J.M.Jarmacz", email = "jason@trademomentumllc.com"}]
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}

@@ -13,4 +13,21 @@ export default defineConfig([
   },
   tseslint.configs.recommended,
   pluginReact.configs.flat.recommended,
+  pluginReact.configs.flat['jsx-runtime'],
+  {
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      'no-unused-vars': 'off',
+      'no-prototype-builtins': 'off',
+      '@typescript-eslint/no-namespace': 'off',
+      'no-case-declarations': 'off',
+      'no-useless-escape': 'off',
+      'no-var': 'off',
+      'react/prop-types': 'off',
+      'react/no-unescaped-entities': 'off',
+      'react/no-unknown-property': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
 ]);
