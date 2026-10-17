@@ -60,8 +60,8 @@ const audioRequestSchema = z.object({
  */
 router.post('/agents/:agentId/chat', async (req, res) => {
   try {
-    const agentId = parseInt(req.params.agentId);
-    const userId = req.user?.id;
+    const agentId = parseInt(String(req.params.agentId), 10);
+    const userId = req.user?.claims?.sub;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -103,8 +103,8 @@ router.post(
   upload.single('image'),
   async (req, res) => {
     try {
-      const agentId = parseInt(req.params.agentId);
-      const userId = req.user?.id;
+      const agentId = parseInt(String(req.params.agentId), 10);
+      const userId = req.user?.claims?.sub;
 
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
@@ -152,8 +152,8 @@ router.post(
   upload.single('audio'),
   async (req, res) => {
     try {
-      const agentId = parseInt(req.params.agentId);
-      const userId = req.user?.id;
+      const agentId = parseInt(String(req.params.agentId), 10);
+      const userId = req.user?.claims?.sub;
 
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
@@ -204,8 +204,8 @@ router.post(
   ]),
   async (req, res) => {
     try {
-      const agentId = parseInt(req.params.agentId);
-      const userId = req.user?.id;
+      const agentId = parseInt(String(req.params.agentId), 10);
+      const userId = req.user?.claims?.sub;
 
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
@@ -254,8 +254,8 @@ router.post(
  */
 router.get('/agents/:agentId/capabilities', async (req, res) => {
   try {
-    const agentId = parseInt(req.params.agentId);
-    const userId = req.user?.id;
+    const agentId = parseInt(String(req.params.agentId), 10);
+    const userId = req.user?.claims?.sub;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -278,8 +278,8 @@ router.get('/agents/:agentId/capabilities', async (req, res) => {
  */
 router.post('/agents/:agentId/memory/clear', async (req, res) => {
   try {
-    const agentId = parseInt(req.params.agentId);
-    const userId = req.user?.id;
+    const agentId = parseInt(String(req.params.agentId), 10);
+    const userId = req.user?.claims?.sub;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -303,7 +303,7 @@ router.post('/agents/:agentId/memory/clear', async (req, res) => {
 router.get('/sessions/:sessionId/history', async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const userId = req.user?.id;
+    const userId = req.user?.claims?.sub;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });

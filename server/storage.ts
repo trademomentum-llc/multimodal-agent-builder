@@ -704,7 +704,9 @@ export class DatabaseStorage implements IStorage {
       activeBlocks: activeBlocks[0]?.count || 0,
       threatLevels: threatLevels.reduce(
         (acc, level) => {
-          acc[level.threatLevel] = level.count;
+          // threat_level defaults to 'medium' when unset
+          const key = level.threatLevel ?? 'medium';
+          acc[key] = (acc[key] ?? 0) + level.count;
           return acc;
         },
         {} as Record<string, number>,

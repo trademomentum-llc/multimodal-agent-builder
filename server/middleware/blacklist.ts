@@ -23,7 +23,7 @@ export const blacklistMiddleware = async (
 
     if (isBlacklisted) {
       // Log the blocked attempt
-      await auditLogger.log(
+      await auditLogger.logWithMetadata(
         null,
         'security.blacklist.blocked',
         'security',
@@ -50,7 +50,7 @@ export const blacklistMiddleware = async (
   } catch (error) {
     console.error('Error in blacklist middleware:', error);
     // Don't block on middleware errors, but log them
-    await auditLogger.log(
+    await auditLogger.logWithMetadata(
       null,
       'security.blacklist.error',
       'security',

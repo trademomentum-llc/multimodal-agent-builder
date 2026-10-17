@@ -63,6 +63,13 @@ export const agentTypes = pgTable('agent_types', {
 });
 
 // Agent instances
+/** Per-agent security settings stored in agents.security_config (JSONB). */
+export interface AgentSecurityConfig {
+  approvalRequired?: boolean;
+  encryption?: boolean;
+  [setting: string]: unknown;
+}
+
 export const agents = pgTable('agents', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
@@ -80,7 +87,7 @@ export const agents = pgTable('agents', {
   selfOptimization: jsonb('self_optimization').default('{}'), // Auto-improvement metrics and learning
   osiLayerSecurity: jsonb('osi_layer_security').default('{}'), // Security configurations per OSI layer
   configuration: jsonb('configuration'),
-  securityConfig: jsonb('security_config'),
+  securityConfig: jsonb('security_config').$type<AgentSecurityConfig>(),
   lastActivity: timestamp('last_activity'),
   // Multimodal agent capabilities
   llmProvider: varchar('llm_provider', { length: 50 }).default('openai'), // openai, anthropic, gemini
@@ -92,7 +99,9 @@ export const agents = pgTable('agents', {
   enableAudio: boolean('enable_audio').default(false),
   enableFunctions: boolean('enable_functions').default(true),
   enableMemory: boolean('enable_memory').default(true),
-  imageDetail: varchar('image_detail', { length: 20 }).default('auto'), // low, high, auto
+  imageDetail: varchar('image_detail', { length: 20 })
+    .$type<'auto' | 'low' | 'high'>()
+    .default('auto'), // low, high, auto
   audioLanguage: varchar('audio_language', { length: 10 }).default('en'),
   multimodalReasoning: boolean('multimodal_reasoning').default(true),
   capabilities: jsonb('capabilities').default('{}'), // vision, audio, streaming, functions
@@ -595,7 +604,9 @@ export const insertAgentTypeSchema = createInsertSchema(agentTypes).omit({
   updatedAt: true,
 });
 
-export const insertAgentSchema = createInsertSchema(agents).omit({
+export const insertAgentSchema = createInsertSchema(agents, {
+  imageDetail: z.enum(['auto', 'low', 'high']).nullable().optional(),
+}).omit({
   id: true,
   createdAt: true,
   updatedAt: true,

@@ -161,11 +161,10 @@ class NationalReserveService {
     // Activate pattern recognition systems
     await this.activatePatternRecognition(deployedAgents);
 
-    await auditLogger.log(
+    await auditLogger.logWithMetadata(
       userId,
       'national_reserve.deploy',
       'agent_system',
-      null,
       { deployedCount: deployedAgents.length },
     );
 
@@ -378,11 +377,10 @@ class NationalReserveService {
     };
 
     // Log analysis for learning
-    await auditLogger.log(
+    await auditLogger.logWithMetadata(
       userId,
       'conversation.analyze',
       'communication',
-      null,
       {
         context,
         analysisResults: patternAnalysis,

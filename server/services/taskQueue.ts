@@ -34,7 +34,6 @@ class TaskQueue {
     // Update task status to pending
     await storage.updateTask(task.id, {
       status: 'pending',
-      updatedAt: new Date(),
     });
 
     // Add to queue based on priority
@@ -96,7 +95,6 @@ class TaskQueue {
       await storage.updateTask(task.id, {
         status: 'processing',
         startedAt: new Date(),
-        updatedAt: new Date(),
       });
 
       await auditLogger.log(
@@ -117,7 +115,6 @@ class TaskQueue {
         // Re-queue for later
         await storage.updateTask(task.id, {
           status: 'pending',
-          updatedAt: new Date(),
         });
 
         // Add back to queue with delay
@@ -147,7 +144,6 @@ class TaskQueue {
         status: 'completed',
         result,
         completedAt: new Date(),
-        updatedAt: new Date(),
       });
 
       await storage.createActivity({

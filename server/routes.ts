@@ -512,7 +512,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   name: `${deployment.typeName} ${String.fromCharCode(65 + i)}${i + 1}`, // A1, B2, etc.
                   typeId: agentType.id,
                   description: `National Reserve ${deployment.typeName} - Unit ${i + 1}`,
-                  config: {
+                  configuration: {
                     rank: deployment.typeName,
                     unitId: `NR-${agentType.id}-${String.fromCharCode(65 + i)}${i + 1}`,
                     deploymentTimestamp: Date.now(),
@@ -555,7 +555,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const userId = req.user.claims.sub;
         const { text, context } = req.body;
 
-        await auditLogger.log(
+        await auditLogger.logWithMetadata(
           userId,
           'national-reserve.pattern-analysis',
           'national-reserve',
@@ -566,10 +566,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Advanced pattern recognition analysis
         const analysis = {
           leetSpeak: /[3471]/g.test(text) || /[@$]/g.test(text),
-          subliminalIndicators: [],
+          subliminalIndicators: [] as string[],
           communicationStyle: 'direct',
           emotionalTone: 'neutral',
-          hiddenMeaning: undefined,
+          hiddenMeaning: undefined as string | undefined,
         };
 
         // Check for subliminal patterns
@@ -788,7 +788,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId,
           reason,
         );
-        await auditLogger.log(
+        await auditLogger.logWithMetadata(
           userId,
           'security.blacklist.removed',
           'security',
@@ -834,7 +834,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           req,
           threatAnalysis,
         );
-        await auditLogger.log(
+        await auditLogger.logWithMetadata(
           userId,
           'security.blacklist.manual_add',
           'security',
@@ -862,7 +862,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const userId = req.user.claims.sub;
         const analysis = threatIntelligenceService.analyzeThreat(req);
 
-        await auditLogger.log(
+        await auditLogger.logWithMetadata(
           userId,
           'security.threat.analyzed',
           'security',
@@ -1478,7 +1478,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             log.action.includes('delete') || log.action.includes('admin'),
         ).length;
 
-        const threats = [];
+        const threats: Array<{
+          type: string;
+          description: string;
+          severity: string;
+          timestamp: string;
+        }> = [];
         if (failedLogins > 5) {
           threats.push({
             type: 'Multiple Failed Logins',

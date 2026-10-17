@@ -14,12 +14,12 @@ export const securityMiddleware = helmet({
       scriptSrc: [
         "'self'",
         // dynamically add nonce for each request
-        (req, res) => `'nonce-${(res.locals as any).cspNonce}'`,
+        (_req, res) => `'nonce-${(res as Response).locals.cspNonce}'`,
         ...(process.env.NODE_ENV !== 'production' ? ["'unsafe-inline'"] : []),
       ],
       styleSrc: [
         "'self'",
-        (req, res) => `'nonce-${(res.locals as any).cspNonce}'`,
+        (_req, res) => `'nonce-${(res as Response).locals.cspNonce}'`,
         'https://fonts.googleapis.com',
         ...(process.env.NODE_ENV !== 'production' ? ["'unsafe-inline'"] : []),
       ],
@@ -220,10 +220,8 @@ function parseSize(size: string): number {
 
 import 'express-session';
 
-declare global {
-  namespace Express {
-    interface Request {
-      session?: any;
-    }
+declare module 'express-session' {
+  interface SessionData {
+    csrfToken?: string;
   }
 }
