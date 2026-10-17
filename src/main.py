@@ -1,6 +1,7 @@
 """Main FastAPI application for the Multimodal Agent Builder."""
 
 import asyncio
+import logging
 import os
 import time
 from collections import defaultdict
@@ -32,6 +33,8 @@ from src.api.rag_api import router as rag_api_router
 from src.api.training_endpoints import router as training_router
 from src.models.base_llm import Message, MessageRole
 from src.utils.auth_utils import verify_api_key_token
+
+_log = logging.getLogger(__name__)
 
 CallNext = Callable[[Request], Awaitable[Response]]
 
@@ -149,7 +152,9 @@ def _init_otel(app_: FastAPI) -> None:
         HTTPXClientInstrumentor().instrument()
     except Exception:
         # Never block app startup on telemetry errors
-        pass
+        _log.warning(
+            "OpenTelemetry initialisation failed; continuing without tracing", exc_info=True
+        )
 
 
 _init_otel(app)

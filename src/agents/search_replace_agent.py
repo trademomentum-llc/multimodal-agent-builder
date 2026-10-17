@@ -1,9 +1,12 @@
+import logging
 import os
 import re
 from collections.abc import Iterator
 from pathlib import Path
 from re import Pattern
 from typing import Any
+
+_log = logging.getLogger(__name__)
 
 
 class SearchReplaceAgent:
@@ -32,8 +35,8 @@ class SearchReplaceAgent:
                             results.setdefault(str(file_path), []).append(
                                 f"Line {i}: {line.rstrip()}"
                             )
-            except Exception:
-                continue
+            except OSError:
+                _log.debug("Skipping unreadable file %s", file_path, exc_info=True)
         return results
 
     def replace(
@@ -60,8 +63,8 @@ class SearchReplaceAgent:
                         with open(file_path, "w", encoding="utf-8") as f:
                             f.write(new_content)
                         changes.append({"file": str(file_path), "changes": len(matches)})
-            except Exception:
-                continue
+            except OSError:
+                _log.debug("Skipping unreadable/unwritable file %s", file_path, exc_info=True)
         return changes
 
     def _iter_files(

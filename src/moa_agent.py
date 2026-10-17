@@ -1,4 +1,4 @@
-import random
+import secrets
 from typing import Any, Protocol
 
 
@@ -19,9 +19,9 @@ class MOAAgent:
     def estimate_moa(self, user_context: Any, medical_data: str) -> dict[str, str]:
         # Placeholder logic—replace with scoring models
         return {
-            "motivation": random.choice(["high", "medium", "low"]),
-            "opportunity": random.choice(["present", "missing"]),
-            "ability": random.choice(["high", "medium", "low"]),
+            "motivation": secrets.choice(["high", "medium", "low"]),
+            "opportunity": secrets.choice(["present", "missing"]),
+            "ability": secrets.choice(["high", "medium", "low"]),
         }
 
     def build_prompt(self, medical_data: str, moa_state: dict[str, str]) -> str:

@@ -32,8 +32,8 @@ def load_grounding_documents() -> dict[str, str]:
             if f.is_file() and f.suffix.lower() in {".md", ".txt", ".json"}:
                 try:
                     results[str(f.name)] = f.read_text(encoding="utf-8", errors="ignore")
-                except Exception:
-                    continue
+                except OSError:
+                    logger.debug("Skipping unreadable grounding file %s", f, exc_info=True)
             elif f.is_file() and f.suffix.lower() in {".pdf"} and PdfReader is not None:
                 try:
                     reader = PdfReader(str(f))
@@ -42,11 +42,11 @@ def load_grounding_documents() -> dict[str, str]:
                         try:
                             text_parts.append(page.extract_text() or "")
                         except Exception:
-                            continue
+                            logger.debug("Skipping unextractable PDF page in %s", f, exc_info=True)
                     content = "\n".join(text_parts)
                     results[str(f.name)] = content
                 except Exception:
-                    continue
+                    logger.debug("Skipping unreadable PDF %s", f, exc_info=True)
     except Exception as e:
         logger.warning(f"Failed to load ethics framework: {e}")
     return results

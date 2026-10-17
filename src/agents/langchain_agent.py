@@ -1,6 +1,8 @@
 """LangChain-integrated agent with advanced tool support."""
 
+import ast
 import json
+import operator
 from typing import Any
 
 from langchain_classic.agents import AgentExecutor, create_react_agent
@@ -18,6 +20,60 @@ from config.config import settings
 from src.agents.base_agent import AgentConfig, AgentResponse, BaseAgent
 from src.models.base_llm import BaseLLMClient, Message, MessageRole
 from src.utils.grounding import get_grounding_summary
+
+_BIN_OPS: dict[type[ast.operator], Any] = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod: operator.mod,
+    ast.Pow: operator.pow,
+}
+_UNARY_OPS: dict[type[ast.unaryop], Any] = {ast.UAdd: operator.pos, ast.USub: operator.neg}
+_CALC_FUNCS: dict[str, Any] = {
+    "abs": abs,
+    "round": round,
+    "min": min,
+    "max": max,
+    "sum": sum,
+    "pow": pow,
+    "len": len,
+}
+_MAX_EXPONENT = 1000
+
+
+def _safe_eval(expression: str) -> Any:
+    """Evaluate an arithmetic expression by walking its AST (no eval()).
+
+    Supports numbers, + - * / // % **, unary +/-, list/tuple literals and the
+    whitelisted functions in _CALC_FUNCS. Anything else raises ValueError.
+    """
+
+    def _eval(node: ast.AST) -> Any:
+        if isinstance(node, ast.Expression):
+            return _eval(node.body)
+        if isinstance(node, ast.Constant) and isinstance(node.value, int | float):
+            return node.value
+        if isinstance(node, ast.BinOp) and type(node.op) in _BIN_OPS:
+            left, right = _eval(node.left), _eval(node.right)
+            if isinstance(node.op, ast.Pow) and abs(right) > _MAX_EXPONENT:
+                raise ValueError("Exponent too large")
+            return _BIN_OPS[type(node.op)](left, right)
+        if isinstance(node, ast.UnaryOp) and type(node.op) in _UNARY_OPS:
+            return _UNARY_OPS[type(node.op)](_eval(node.operand))
+        if isinstance(node, ast.List | ast.Tuple):
+            return [_eval(elt) for elt in node.elts]
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id in _CALC_FUNCS
+            and not node.keywords
+        ):
+            return _CALC_FUNCS[node.func.id](*(_eval(arg) for arg in node.args))
+        raise ValueError(f"Unsupported expression element: {type(node).__name__}")
+
+    return _eval(ast.parse(expression, mode="eval"))
 
 
 def _lc_content(msg: Message) -> str | list[str | dict[Any, Any]]:
@@ -369,18 +425,7 @@ Thought: {agent_scratchpad}""",
 
         """
         try:
-            # Use eval safely for basic math operations
-            allowed_names = {
-                "abs": abs,
-                "round": round,
-                "min": min,
-                "max": max,
-                "sum": sum,
-                "pow": pow,
-                "len": len,
-            }
-            result = eval(expression, {"__builtins__": {}}, allowed_names)
-            return str(result)
+            return str(_safe_eval(expression))
         except Exception as e:
             return f"Error in calculation: {str(e)}"
 

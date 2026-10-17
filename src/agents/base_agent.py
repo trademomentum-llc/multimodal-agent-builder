@@ -1,5 +1,6 @@
 """Base agent abstract class for building AI agents."""
 
+import logging
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -12,6 +13,8 @@ from pydantic import BaseModel, Field
 from src.models.base_llm import BaseLLMClient, LLMResponse, Message, MessageRole
 from src.utils.grounding import get_grounding_summary
 from src.utils.training_utils import RecursiveLoopClosureLedger
+
+_log = logging.getLogger(__name__)
 
 
 class AgentState(Enum):
@@ -240,7 +243,7 @@ class BaseAgent(ABC):
                 )
             except Exception:
                 # Closure logging must never affect core agent execution
-                pass
+                _log.debug("Loop-closure logging failed", exc_info=True)
 
             # Update memory if enabled
             if self.memory and isinstance(input_data, str):
