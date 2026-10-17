@@ -1,5 +1,6 @@
 import random
 
+
 class MOAAgent:
     def __init__(self, llm):
         self.llm = llm

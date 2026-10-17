@@ -1,14 +1,14 @@
-"""
-CodingAgent for chunk indexing, embedding generation, and RAG integration.
+"""CodingAgent for chunk indexing, embedding generation, and RAG integration.
 """
 
-from typing import List, Dict, Optional, Any
-from pathlib import Path
-import os
 import json
-import psycopg2
-import numpy as np
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import psycopg2
+
 
 @dataclass
 class ChunkRecord:
@@ -25,7 +25,7 @@ class DocumentRecord:
     source: str
     label: str
     parent_chunk_id: int
-    extra: Optional[dict] = None
+    extra: dict | None = None
 
 class CodingAgent:
     def __init__(self, db_url: str):
@@ -33,7 +33,7 @@ class CodingAgent:
         self.conn = psycopg2.connect(self.db_url)
         self.conn.autocommit = True
 
-    def index_chunks_and_metadata(self, manifest_paths: List[str]):
+    def index_chunks_and_metadata(self, manifest_paths: list[str]):
         cur = self.conn.cursor()
         for manifest_file in manifest_paths:
             with open(manifest_file) as f:
@@ -59,7 +59,7 @@ class CodingAgent:
                     # Optional: Insert per-document metadata as well...
         cur.close()
 
-    def generate_and_insert_embeddings(self, doc_texts: List[str], doc_ids: List[str], chunk_indices: List[int], embedding_fn):
+    def generate_and_insert_embeddings(self, doc_texts: list[str], doc_ids: list[str], chunk_indices: list[int], embedding_fn):
         """embedding_fn(doc_text) returns ndarray (1536,)"""
         cur = self.conn.cursor()
         for doc_id, chunk_idx, text in zip(doc_ids, chunk_indices, doc_texts):
@@ -73,7 +73,7 @@ class CodingAgent:
             )
         cur.close()
 
-    def rag_select_docs(self, query_embedding: np.ndarray, top_k: int = 5) -> List[Dict[str, Any]]:
+    def rag_select_docs(self, query_embedding: np.ndarray, top_k: int = 5) -> list[dict[str, Any]]:
         cur = self.conn.cursor()
         cur.execute(
             """

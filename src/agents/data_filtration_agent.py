@@ -2,8 +2,7 @@ from src.utils.dataset_manager import DatasetManager
 
 
 class DataFiltrationAgent:
-    """
-    Agent that performs dataset filtering/deduplication for a split.
+    """Agent that performs dataset filtering/deduplication for a split.
     Handles QA, outlier, and custom filter rules, with pluggable filters.
     """
 

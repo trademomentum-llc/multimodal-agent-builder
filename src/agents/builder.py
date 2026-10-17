@@ -1,13 +1,12 @@
-from src.utils.dataset_manager import DatasetManager
 from src.agents.data_analysis_agent import DataAnalysisAgent
 from src.agents.data_filtration_agent import DataFiltrationAgent
 from src.agents.data_management_agent import DataManagementAgent
 from src.agents.search_replace_agent import SearchReplaceAgent
+from src.utils.dataset_manager import DatasetManager
 
 
 class AgentBuilder:
-    """
-    Factory for building specialized agent classes, injecting dependencies.
+    """Factory for building specialized agent classes, injecting dependencies.
     Usage:
         builder = AgentBuilder(dataset_root="train-test-validate")
         analysis = builder.build_data_analysis_agent()

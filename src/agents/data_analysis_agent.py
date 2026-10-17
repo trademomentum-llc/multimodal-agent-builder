@@ -2,8 +2,7 @@ from src.utils.dataset_manager import DatasetManager
 
 
 class DataAnalysisAgent:
-    """
-    An agent for exploring and analyzing dataset splits (train/val/test),
+    """An agent for exploring and analyzing dataset splits (train/val/test),
     generating statistics, summaries, and anomaly reports.
     """
 

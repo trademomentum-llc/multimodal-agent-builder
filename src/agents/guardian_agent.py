@@ -1,15 +1,16 @@
-from pathlib import Path
 import hashlib
+from pathlib import Path
+
 import pandas as pd
-from typing import List, Optional, Dict
+
 
 class GuardianAgent:
-    """
-    This agent monitors ledger or training artifact integrity.
+    """This agent monitors ledger or training artifact integrity.
     - Checks for missing/invalid records
     - Optionally performs file hashing for tamper detection
     - Verifies column/row counts and schema
     """
+
     REQUIRED_COLUMNS = [
         "Loop ID", "Topic", "Hypothesis", "Pattern", "Structure", "Why Closed", "Timestamp"
     ]
@@ -17,7 +18,7 @@ class GuardianAgent:
     def __init__(self, ledger_path: str):
         self.ledger_path = Path(ledger_path)
 
-    def scan_ledger(self) -> Dict:
+    def scan_ledger(self) -> dict:
         """Loads the ledger file and visits for structural integrity."""
         if not self.ledger_path.exists():
             return {"status": "error", "msg": f"No ledger found at {self.ledger_path}"}

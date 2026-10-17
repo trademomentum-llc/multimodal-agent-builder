@@ -4,8 +4,7 @@ import json
 import logging
 import sys
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from config.config import settings
 
@@ -77,9 +76,9 @@ class JSONFormatter(logging.Formatter):
 
 def setup_logger(
     name: str = "multimodal_agent",
-    level: Optional[str] = None,
-    log_file: Optional[str] = None,
-    format_type: Optional[str] = None,
+    level: str | None = None,
+    log_file: str | None = None,
+    format_type: str | None = None,
 ) -> logging.Logger:
     """Setup a logger with configured handlers.
 
@@ -91,6 +90,7 @@ def setup_logger(
 
     Returns:
         Configured logger
+
     """
     logger = logging.getLogger(name)
 
@@ -140,6 +140,7 @@ def get_agent_logger(agent_id: str) -> logging.Logger:
 
     Returns:
         Logger for the agent
+
     """
     return setup_logger(f"agent.{agent_id}")
 
@@ -148,8 +149,8 @@ def log_api_request(
     logger: logging.Logger,
     method: str,
     endpoint: str,
-    data: Optional[Dict[str, Any]] = None,
-    headers: Optional[Dict[str, str]] = None,
+    data: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
 ):
     """Log an API request.
 
@@ -159,6 +160,7 @@ def log_api_request(
         endpoint: API endpoint
         data: Request data
         headers: Request headers
+
     """
     logger.info(
         "API Request",
@@ -178,8 +180,8 @@ def log_api_request(
 def log_api_response(
     logger: logging.Logger,
     status_code: int,
-    response_data: Optional[Any] = None,
-    error: Optional[str] = None,
+    response_data: Any | None = None,
+    error: str | None = None,
 ):
     """Log an API response.
 
@@ -188,6 +190,7 @@ def log_api_response(
         status_code: HTTP status code
         response_data: Response data
         error: Error message if any
+
     """
     if error:
         logger.error("API Error", extra={"status_code": status_code, "error": error})
@@ -203,7 +206,7 @@ def log_agent_action(
     action: str,
     input_data: Any,
     output_data: Any,
-    duration_ms: Optional[float] = None,
+    duration_ms: float | None = None,
 ):
     """Log an agent action.
 
@@ -214,6 +217,7 @@ def log_agent_action(
         input_data: Input to the action
         output_data: Output from the action
         duration_ms: Duration in milliseconds
+
     """
     logger.info(
         f"Agent action: {action}",
@@ -234,7 +238,7 @@ def log_model_usage(
     prompt_tokens: int,
     completion_tokens: int,
     total_tokens: int,
-    cost: Optional[float] = None,
+    cost: float | None = None,
 ):
     """Log model token usage.
 
@@ -246,6 +250,7 @@ def log_model_usage(
         completion_tokens: Number of completion tokens
         total_tokens: Total tokens
         cost: Optional cost estimate
+
     """
     logger.info(
         "Model usage",
@@ -268,17 +273,19 @@ class ErrorTracker:
 
         Args:
             max_errors: Maximum number of errors to track
+
         """
         self.errors = []
         self.max_errors = max_errors
         self.error_counts = {}
 
-    def track_error(self, error: Exception, context: Optional[Dict[str, Any]] = None):
+    def track_error(self, error: Exception, context: dict[str, Any] | None = None):
         """Track an error.
 
         Args:
             error: Exception that occurred
             context: Additional context
+
         """
         error_data = {
             "timestamp": datetime.utcnow().isoformat(),
@@ -297,11 +304,12 @@ class ErrorTracker:
         error_type = type(error).__name__
         self.error_counts[error_type] = self.error_counts.get(error_type, 0) + 1
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Get error summary.
 
         Returns:
             Summary of tracked errors
+
         """
         return {
             "total_errors": len(self.errors),
@@ -321,7 +329,7 @@ error_tracker = ErrorTracker()
 
 
 def handle_exception(
-    exc: Exception, context: Optional[Dict[str, Any]] = None, reraise: bool = True
+    exc: Exception, context: dict[str, Any] | None = None, reraise: bool = True
 ):
     """Handle an exception with logging and tracking.
 
@@ -329,6 +337,7 @@ def handle_exception(
         exc: Exception to handle
         context: Additional context
         reraise: Whether to reraise the exception
+
     """
     logger.error(f"Exception occurred: {exc}", exc_info=True, extra={"context": context})
 

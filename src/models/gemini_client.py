@@ -1,8 +1,8 @@
 """Google Gemini client implementation."""
 
-import base64
 import io
-from typing import Any, AsyncGenerator, Dict, List, Optional, Union
+from collections.abc import AsyncGenerator
+from typing import Any
 
 import google.generativeai as genai
 import numpy as np
@@ -63,10 +63,10 @@ class GeminiClient(BaseLLMClient):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        api_key: str | None = None,
+        model: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         **kwargs,
     ):
         """Initialize Gemini client.
@@ -77,6 +77,7 @@ class GeminiClient(BaseLLMClient):
             max_tokens: Maximum tokens to generate
             temperature: Temperature for sampling
             **kwargs: Additional parameters
+
         """
         # Use settings as defaults
         config = settings.get_llm_config("gemini")
@@ -105,7 +106,7 @@ class GeminiClient(BaseLLMClient):
         )
 
     async def generate(
-        self, messages: List[Message], functions: Optional[List[Dict[str, Any]]] = None, **kwargs
+        self, messages: list[Message], functions: list[dict[str, Any]] | None = None, **kwargs
     ) -> LLMResponse:
         """Generate a response from Gemini.
 
@@ -116,6 +117,7 @@ class GeminiClient(BaseLLMClient):
 
         Returns:
             LLMResponse object
+
         """
         # Convert messages to Gemini format
         gemini_messages = self._convert_messages_to_gemini(messages)
@@ -155,7 +157,7 @@ class GeminiClient(BaseLLMClient):
             raw_response=response,
         )
 
-    async def generate_stream(self, messages: List[Message], **kwargs) -> AsyncGenerator[str, None]:
+    async def generate_stream(self, messages: list[Message], **kwargs) -> AsyncGenerator[str, None]:
         """Generate a streaming response from Gemini.
 
         Args:
@@ -164,6 +166,7 @@ class GeminiClient(BaseLLMClient):
 
         Yields:
             Response chunks
+
         """
         gemini_messages = self._convert_messages_to_gemini(messages)
 
@@ -186,7 +189,7 @@ class GeminiClient(BaseLLMClient):
                 yield chunk.text
 
     async def generate_with_image(
-        self, prompt: str, image: Union[str, bytes, Image.Image, np.ndarray], **kwargs
+        self, prompt: str, image: str | bytes | Image.Image | np.ndarray, **kwargs
     ) -> LLMResponse:
         """Generate a response based on text and image input.
 
@@ -197,6 +200,7 @@ class GeminiClient(BaseLLMClient):
 
         Returns:
             LLMResponse object
+
         """
         if not self.supports_vision:
             raise ValueError(f"Model {self.model} does not support vision inputs")
@@ -225,8 +229,8 @@ class GeminiClient(BaseLLMClient):
         )
 
     async def generate_embeddings(
-        self, text: Union[str, List[str]], model: str = "models/text-embedding-004", **kwargs
-    ) -> Union[List[float], List[List[float]]]:
+        self, text: str | list[str], model: str = "models/text-embedding-004", **kwargs
+    ) -> list[float] | list[list[float]]:
         """Generate embeddings for text.
 
         Args:
@@ -236,6 +240,7 @@ class GeminiClient(BaseLLMClient):
 
         Returns:
             Embeddings
+
         """
         is_single = isinstance(text, str)
         texts = [text] if is_single else text
@@ -260,11 +265,12 @@ class GeminiClient(BaseLLMClient):
 
         Returns:
             Number of tokens
+
         """
         # Use Gemini's count_tokens method
         return self.model_instance.count_tokens(text).total_tokens
 
-    def _convert_messages_to_gemini(self, messages: List[Message]) -> List[Dict[str, Any]]:
+    def _convert_messages_to_gemini(self, messages: list[Message]) -> list[dict[str, Any]]:
         """Convert messages to Gemini format.
 
         Args:
@@ -272,6 +278,7 @@ class GeminiClient(BaseLLMClient):
 
         Returns:
             List of Gemini-formatted messages
+
         """
         gemini_messages = []
 
@@ -298,7 +305,7 @@ class GeminiClient(BaseLLMClient):
 
         return gemini_messages
 
-    def _convert_functions_to_tools(self, functions: List[Dict[str, Any]]) -> List[Any]:
+    def _convert_functions_to_tools(self, functions: list[dict[str, Any]]) -> list[Any]:
         """Convert OpenAI-style functions to Gemini tools.
 
         Args:
@@ -306,13 +313,14 @@ class GeminiClient(BaseLLMClient):
 
         Returns:
             List of Gemini tool definitions
+
         """
         # This would need proper implementation based on Gemini's tool format
         # For now, returning None as Gemini's function calling API may differ
         return None
 
     def _process_image_for_gemini(
-        self, image: Union[str, bytes, Image.Image, np.ndarray]
+        self, image: str | bytes | Image.Image | np.ndarray
     ) -> Image.Image:
         """Process image for Gemini API.
 
@@ -321,6 +329,7 @@ class GeminiClient(BaseLLMClient):
 
         Returns:
             PIL Image object
+
         """
         if isinstance(image, str):
             # If it's a file path
@@ -334,7 +343,7 @@ class GeminiClient(BaseLLMClient):
         else:
             raise ValueError(f"Unsupported image type: {type(image)}")
 
-    def _extract_usage(self, response) -> Dict[str, int]:
+    def _extract_usage(self, response) -> dict[str, int]:
         """Extract usage information from response.
 
         Args:
@@ -342,6 +351,7 @@ class GeminiClient(BaseLLMClient):
 
         Returns:
             Usage dictionary
+
         """
         # Gemini doesn't always provide detailed token counts
         # This is a simplified version
@@ -363,6 +373,7 @@ class GeminiClient(BaseLLMClient):
 
         Returns:
             Finish reason string
+
         """
         if hasattr(response, "candidates") and response.candidates:
             candidate = response.candidates[0]

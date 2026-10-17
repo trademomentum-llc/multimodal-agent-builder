@@ -3,14 +3,12 @@
 import asyncio
 import os
 import time
-import uuid
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from fastapi import (
-    BackgroundTasks,
     FastAPI,
     File,
     Form,
@@ -24,36 +22,32 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from config.config import settings
+
 _OTEL_AVAILABLE = True
 try:
     from opentelemetry import trace  # type: ignore
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import (  # type: ignore
         OTLPSpanExporter,
     )
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor  # type: ignore
+    from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor  # type: ignore
     from opentelemetry.sdk.resources import Resource  # type: ignore
     from opentelemetry.sdk.trace import TracerProvider  # type: ignore
     from opentelemetry.sdk.trace.export import BatchSpanProcessor  # type: ignore
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor  # type: ignore
-    from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor  # type: ignore
 except Exception:  # pragma: no cover
     _OTEL_AVAILABLE = False
-from src.agents.agent_factory import AgentFactory, AgentType, LLMProvider
+from src.agents.agent_factory import AgentFactory
 from src.agents.base_agent import AgentResponse, BaseAgent
 from src.agents.multimodal_agent import MultimodalInput
-from src.api.auth import router as auth_router
+from src.api.council_api import router as council_router
 from src.api.evaluations import router as evaluations_router
 from src.api.rag_api import router as rag_api_router
 from src.api.training_endpoints import router as training_router
 from src.utils.auth_utils import verify_api_key_token
-import time
-from collections import defaultdict
-from src.api.council_api import router as council_router
-from src.api.rag_api import router as rag_api_router
-
 
 # Global agent storage (in production, use a database)
-agent_store: Dict[str, BaseAgent] = {}
-_agent_cleanup_task: Optional[asyncio.Task] = None
+agent_store: dict[str, BaseAgent] = {}
+_agent_cleanup_task: asyncio.Task | None = None
 
 
 def prune_stale_agents(force: bool = False) -> int:
@@ -178,7 +172,6 @@ async def security_middleware(request: Request, call_next):
         try:
             if settings.redis_url:
                 # Optional Redis-based limiter
-                import asyncio
                 import redis.asyncio as redis  # type: ignore
 
                 r = redis.from_url(settings.redis_url, decode_responses=True)
@@ -274,23 +267,23 @@ class CreateAgentRequest(BaseModel):
     name: str = Field(description="Agent name")
     type: str = Field(default="multimodal", description="Agent type")
     provider: str = Field(default="openai", description="LLM provider")
-    model: Optional[str] = Field(default=None, description="Model name")
-    description: Optional[str] = Field(default="", description="Agent description")
-    system_prompt: Optional[str] = Field(default=None, description="System prompt")
+    model: str | None = Field(default=None, description="Model name")
+    description: str | None = Field(default="", description="Agent description")
+    system_prompt: str | None = Field(default=None, description="System prompt")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     max_tokens: int = Field(default=4096, gt=0)
     enable_memory: bool = Field(default=True)
     enable_tools: bool = Field(default=True)
     enable_vision: bool = Field(default=True)
     enable_audio: bool = Field(default=True)
-    config: Dict[str, Any] = Field(default_factory=dict, description="Additional configuration")
+    config: dict[str, Any] = Field(default_factory=dict, description="Additional configuration")
 
 
 class ChatRequest(BaseModel):
     """Request model for chat interaction."""
 
     message: str = Field(description="User message")
-    context: Optional[List[Dict[str, str]]] = Field(
+    context: list[dict[str, str]] | None = Field(
         default=None, description="Conversation context"
     )
     stream: bool = Field(default=False, description="Enable streaming response")
@@ -299,16 +292,16 @@ class ChatRequest(BaseModel):
 class MultimodalRequest(BaseModel):
     """Request model for multimodal input."""
 
-    text: Optional[str] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    text: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class InvokeRequest(BaseModel):
     """Request model for agent invocation."""
 
-    input: Union[str, Dict[str, Any]] = Field(description="Input data")
+    input: str | dict[str, Any] = Field(description="Input data")
     stream: bool = Field(default=False)
-    kwargs: Dict[str, Any] = Field(default_factory=dict)
+    kwargs: dict[str, Any] = Field(default_factory=dict)
 
 
 class AgentInfo(BaseModel):
@@ -325,7 +318,7 @@ class AgentInfo(BaseModel):
     tools_enabled: bool
     created_at: str
     last_activity: str
-    capabilities: Dict[str, bool] = Field(default_factory=dict)
+    capabilities: dict[str, bool] = Field(default_factory=dict)
 
 
 class HealthResponse(BaseModel):
@@ -334,7 +327,7 @@ class HealthResponse(BaseModel):
     status: str
     version: str
     environment: str
-    api_keys_configured: Dict[str, bool]
+    api_keys_configured: dict[str, bool]
 
 
 # API Endpoints
@@ -450,7 +443,7 @@ async def create_agent(request: CreateAgentRequest):
         )
 
 
-@app.get("/agents", response_model=List[AgentInfo], tags=["Agents"])
+@app.get("/agents", response_model=list[AgentInfo], tags=["Agents"])
 async def list_agents():
     """List all agents."""
     agents_info = []
@@ -674,9 +667,9 @@ async def process_audio(
 )
 async def process_multimodal(
     agent_id: str,
-    text: Optional[str] = Form(None),
-    image: Optional[UploadFile] = File(None),
-    audio: Optional[UploadFile] = File(None),
+    text: str | None = Form(None),
+    image: UploadFile | None = File(None),
+    audio: UploadFile | None = File(None),
 ):
     """Process multimodal input with the agent."""
     if agent_id not in agent_store:

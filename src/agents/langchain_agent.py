@@ -1,23 +1,22 @@
 """LangChain-integrated agent with advanced tool support."""
 
 import json
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from langchain_classic.agents import AgentExecutor, create_react_agent
 from langchain_classic.memory import ConversationBufferMemory
-from langchain_core.prompts import PromptTemplate
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
-from langchain_core.tools import BaseTool, Tool
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.language_models import BaseLLM
+from langchain_core.prompts import PromptTemplate
+from langchain_core.tools import BaseTool, Tool
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from config.config import settings
-from src.utils.grounding import get_grounding_summary
 from src.agents.base_agent import AgentConfig, AgentResponse, BaseAgent
 from src.models.base_llm import BaseLLMClient, Message, MessageRole
+from src.utils.grounding import get_grounding_summary
 
 
 class LangChainAgentConfig(AgentConfig):
@@ -26,7 +25,7 @@ class LangChainAgentConfig(AgentConfig):
     agent_type: str = Field(default="react", description="Agent type: react, conversational, etc.")
     enable_search: bool = Field(default=True, description="Enable web search")
     enable_calculator: bool = Field(default=True, description="Enable calculator")
-    custom_tools: List[str] = Field(default_factory=list, description="List of custom tool names")
+    custom_tools: list[str] = Field(default_factory=list, description="List of custom tool names")
     max_execution_time: int = Field(default=60, description="Max execution time in seconds")
 
 
@@ -35,10 +34,10 @@ class LangChainAgent(BaseAgent):
 
     def __init__(
         self,
-        config: Union[LangChainAgentConfig, AgentConfig],
-        llm_client: Optional[BaseLLMClient] = None,
-        tools: Optional[List[BaseTool]] = None,
-        langchain_llm: Optional[BaseLLM] = None,
+        config: LangChainAgentConfig | AgentConfig,
+        llm_client: BaseLLMClient | None = None,
+        tools: list[BaseTool] | None = None,
+        langchain_llm: BaseLLM | None = None,
     ):
         """Initialize LangChain agent.
 
@@ -47,6 +46,7 @@ class LangChainAgent(BaseAgent):
             llm_client: Optional base LLM client
             tools: Optional list of LangChain tools
             langchain_llm: Optional LangChain LLM
+
         """
         # Convert config if needed
         if not isinstance(config, LangChainAgentConfig):
@@ -88,6 +88,7 @@ class LangChainAgent(BaseAgent):
 
         Returns:
             LangChain LLM instance
+
         """
         if config.model_provider == "openai":
             return ChatOpenAI(
@@ -112,7 +113,7 @@ class LangChainAgent(BaseAgent):
                 api_key=settings.openai_api_key,
             )
 
-    def _initialize_tools(self, custom_tools: Optional[List[BaseTool]] = None) -> List[BaseTool]:
+    def _initialize_tools(self, custom_tools: list[BaseTool] | None = None) -> list[BaseTool]:
         """Initialize LangChain tools.
 
         Args:
@@ -120,6 +121,7 @@ class LangChainAgent(BaseAgent):
 
         Returns:
             List of tools
+
         """
         tools = []
 
@@ -156,6 +158,7 @@ class LangChainAgent(BaseAgent):
 
         Returns:
             Agent executor
+
         """
         # Build optional ethics grounding header
         ethics = get_grounding_summary()
@@ -205,8 +208,8 @@ Thought: {agent_scratchpad}""",
 
     async def think(
         self,
-        input_data: Union[str, Dict[str, Any]],
-        context: Optional[List[Message]] = None,
+        input_data: str | dict[str, Any],
+        context: list[Message] | None = None,
         **kwargs,
     ) -> str:
         """LangChain thinking process.
@@ -218,6 +221,7 @@ Thought: {agent_scratchpad}""",
 
         Returns:
             Thought/reasoning output
+
         """
         # Convert input to string if needed
         if isinstance(input_data, dict):
@@ -237,8 +241,8 @@ Thought: {agent_scratchpad}""",
         return f"Processing: {input_str[:100]}..."
 
     async def act(
-        self, thought: str, available_actions: Optional[List[Dict[str, Any]]] = None, **kwargs
-    ) -> Dict[str, Any]:
+        self, thought: str, available_actions: list[dict[str, Any]] | None = None, **kwargs
+    ) -> dict[str, Any]:
         """Execute action using LangChain agent.
 
         Args:
@@ -248,6 +252,7 @@ Thought: {agent_scratchpad}""",
 
         Returns:
             Action result
+
         """
         # Extract the actual input from the thought
         input_str = thought.replace("Processing: ", "").rstrip("...")
@@ -265,7 +270,7 @@ Thought: {agent_scratchpad}""",
         except Exception as e:
             return {"type": "error", "input": input_str, "error": str(e)}
 
-    async def observe(self, action_result: Dict[str, Any], **kwargs) -> str:
+    async def observe(self, action_result: dict[str, Any], **kwargs) -> str:
         """Observe LangChain action result.
 
         Args:
@@ -274,6 +279,7 @@ Thought: {agent_scratchpad}""",
 
         Returns:
             Observation/final response
+
         """
         if action_result["type"] == "error":
             return f"Error occurred: {action_result.get('error', 'Unknown error')}"
@@ -289,6 +295,7 @@ Thought: {agent_scratchpad}""",
 
         Returns:
             Agent response with tool usage details
+
         """
         try:
             # Run the agent
@@ -334,6 +341,7 @@ Thought: {agent_scratchpad}""",
 
         Args:
             tool: LangChain tool to add
+
         """
         self.langchain_tools.append(tool)
         # Recreate agent executor with new tools
@@ -347,6 +355,7 @@ Thought: {agent_scratchpad}""",
 
         Returns:
             Calculation result
+
         """
         try:
             # Use eval safely for basic math operations
@@ -364,11 +373,12 @@ Thought: {agent_scratchpad}""",
         except Exception as e:
             return f"Error in calculation: {str(e)}"
 
-    def get_tool_descriptions(self) -> List[Dict[str, str]]:
+    def get_tool_descriptions(self) -> list[dict[str, str]]:
         """Get descriptions of available tools.
 
         Returns:
             List of tool descriptions
+
         """
         return [
             {"name": tool.name, "description": tool.description} for tool in self.langchain_tools

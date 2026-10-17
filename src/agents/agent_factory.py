@@ -1,11 +1,10 @@
 """Factory for creating different types of agents."""
 
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from langchain_core.tools import BaseTool
 
-from config.config import settings
 from src.agents.base_agent import AgentConfig, BaseAgent
 from src.agents.langchain_agent import LangChainAgent, LangChainAgentConfig
 from src.agents.multimodal_agent import MultimodalAgent, MultimodalAgentConfig
@@ -39,7 +38,7 @@ class AgentFactory:
 
     @staticmethod
     def create_llm_client(
-        provider: Union[str, LLMProvider], model: Optional[str] = None, **kwargs
+        provider: str | LLMProvider, model: str | None = None, **kwargs
     ) -> BaseLLMClient:
         """Create an LLM client.
 
@@ -53,6 +52,7 @@ class AgentFactory:
 
         Raises:
             ValueError: If provider is not supported
+
         """
         # Convert string to enum if needed
         if isinstance(provider, str):
@@ -74,12 +74,12 @@ class AgentFactory:
     @staticmethod
     def create_agent(
         name: str,
-        agent_type: Union[str, AgentType] = AgentType.MULTIMODAL,
-        provider: Union[str, LLMProvider] = LLMProvider.OPENAI,
-        model: Optional[str] = None,
+        agent_type: str | AgentType = AgentType.MULTIMODAL,
+        provider: str | LLMProvider = LLMProvider.OPENAI,
+        model: str | None = None,
         description: str = "",
-        system_prompt: Optional[str] = None,
-        tools: Optional[List[Any]] = None,
+        system_prompt: str | None = None,
+        tools: list[Any] | None = None,
         **kwargs,
     ) -> BaseAgent:
         """Create an AI agent.
@@ -99,6 +99,7 @@ class AgentFactory:
 
         Raises:
             ValueError: If agent type is not supported
+
         """
         # Support alias 'type' provided by callers
         if "type" in kwargs and (
@@ -157,10 +158,10 @@ class AgentFactory:
     @staticmethod
     def create_simple_agent(
         name: str,
-        provider: Union[str, LLMProvider] = LLMProvider.OPENAI,
-        model: Optional[str] = None,
+        provider: str | LLMProvider = LLMProvider.OPENAI,
+        model: str | None = None,
         description: str = "",
-        system_prompt: Optional[str] = None,
+        system_prompt: str | None = None,
         **kwargs,
     ) -> BaseAgent:
         """Create a simple (base) agent."""
@@ -177,8 +178,8 @@ class AgentFactory:
     @staticmethod
     def create_multimodal_agent(
         name: str,
-        provider: Union[str, LLMProvider] = LLMProvider.OPENAI,
-        model: Optional[str] = None,
+        provider: str | LLMProvider = LLMProvider.OPENAI,
+        model: str | None = None,
         enable_vision: bool = True,
         enable_audio: bool = True,
         **kwargs,
@@ -195,6 +196,7 @@ class AgentFactory:
 
         Returns:
             Multimodal agent instance
+
         """
         return AgentFactory.create_agent(
             name=name,
@@ -209,9 +211,9 @@ class AgentFactory:
     @staticmethod
     def create_langchain_agent(
         name: str,
-        provider: Union[str, LLMProvider] = LLMProvider.OPENAI,
-        model: Optional[str] = None,
-        tools: Optional[List[BaseTool]] = None,
+        provider: str | LLMProvider = LLMProvider.OPENAI,
+        model: str | None = None,
+        tools: list[BaseTool] | None = None,
         enable_search: bool = True,
         enable_calculator: bool = True,
         **kwargs,
@@ -229,6 +231,7 @@ class AgentFactory:
 
         Returns:
             LangChain agent instance
+
         """
         return AgentFactory.create_agent(
             name=name,
@@ -242,7 +245,7 @@ class AgentFactory:
         )
 
     @staticmethod
-    def create_agent_from_config(config: Dict[str, Any]) -> BaseAgent:
+    def create_agent_from_config(config: dict[str, Any]) -> BaseAgent:
         """Create an agent from a configuration dictionary.
 
         Args:
@@ -250,6 +253,7 @@ class AgentFactory:
 
         Returns:
             Agent instance
+
         """
         # Extract required fields
         name = config.get("name", "Agent")
@@ -277,20 +281,22 @@ class AgentFactory:
         )
 
     @staticmethod
-    def get_available_providers() -> List[str]:
+    def get_available_providers() -> list[str]:
         """Get list of available LLM providers.
 
         Returns:
             List of provider names
+
         """
         return [provider.value for provider in LLMProvider]
 
     @staticmethod
-    def get_available_agent_types() -> List[str]:
+    def get_available_agent_types() -> list[str]:
         """Get list of available agent types.
 
         Returns:
             List of agent type names
+
         """
         # Ensure common aliases are included
         types = {agent_type.value for agent_type in AgentType}
@@ -298,7 +304,7 @@ class AgentFactory:
         return sorted(types)
 
     @staticmethod
-    def get_provider_models(provider: Union[str, LLMProvider]) -> List[str]:
+    def get_provider_models(provider: str | LLMProvider) -> list[str]:
         """Get available models for a provider.
 
         Args:
@@ -306,6 +312,7 @@ class AgentFactory:
 
         Returns:
             List of model names
+
         """
         if isinstance(provider, LLMProvider):
             provider = provider.value

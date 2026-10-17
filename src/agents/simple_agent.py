@@ -1,6 +1,6 @@
 """Simple agent implementation for basic use cases."""
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from src.agents.base_agent import BaseAgent
 from src.models.base_llm import Message, MessageRole
@@ -11,8 +11,8 @@ class SimpleAgent(BaseAgent):
 
     async def think(
         self,
-        input_data: Union[str, Dict[str, Any]],
-        context: Optional[List[Message]] = None,
+        input_data: str | dict[str, Any],
+        context: list[Message] | None = None,
         **kwargs,
     ) -> str:
         """Simple thinking process - just process the input.
@@ -24,6 +24,7 @@ class SimpleAgent(BaseAgent):
 
         Returns:
             Processed thought
+
         """
         if isinstance(input_data, dict):
             # Convert dict to string representation
@@ -35,8 +36,8 @@ class SimpleAgent(BaseAgent):
         return f"Processing request: {input_str}"
 
     async def act(
-        self, thought: str, available_actions: Optional[List[Dict[str, Any]]] = None, **kwargs
-    ) -> Dict[str, Any]:
+        self, thought: str, available_actions: list[dict[str, Any]] | None = None, **kwargs
+    ) -> dict[str, Any]:
         """Simple action - generate response.
 
         Args:
@@ -46,6 +47,7 @@ class SimpleAgent(BaseAgent):
 
         Returns:
             Action result
+
         """
         # Extract the actual request from the thought
         request = thought.replace("Processing request: ", "")
@@ -67,7 +69,7 @@ class SimpleAgent(BaseAgent):
 
         return {"type": "response", "content": response.content, "usage": response.usage}
 
-    async def observe(self, action_result: Dict[str, Any], **kwargs) -> str:
+    async def observe(self, action_result: dict[str, Any], **kwargs) -> str:
         """Simple observation - return the response.
 
         Args:
@@ -76,5 +78,6 @@ class SimpleAgent(BaseAgent):
 
         Returns:
             Final response
+
         """
         return action_result.get("content", "No response generated")

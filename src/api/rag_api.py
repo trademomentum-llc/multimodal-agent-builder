@@ -1,20 +1,21 @@
-"""
-RAG-aware data loader FastAPI endpoints.
+"""RAG-aware data loader FastAPI endpoints.
 - REST API for chunk, document, and embedding retrieval from the RAG backend.
 - Uses CodingAgent for actual Postgres access.
 """
 
-from fastapi import APIRouter, HTTPException, Query
-from typing import List, Optional, Dict, Any
+from typing import Any
+
 import numpy as np
+from fastapi import APIRouter, Query
+
 from src.agents.coding_agent import CodingAgent
 
 router = APIRouter(prefix="/rag", tags=["rag"])
 
 DB_URL = "postgresql://postgres:postgres@localhost:6969/postgres"
 
-@router.get("/chunks", response_model=List[Dict[str,Any]])
-def list_chunks(dataset: Optional[str] = None) -> List[Dict[str,Any]]:
+@router.get("/chunks", response_model=list[dict[str,Any]])
+def list_chunks(dataset: str | None = None) -> list[dict[str,Any]]:
     agent = CodingAgent(DB_URL)
     cur = agent.conn.cursor()
     if dataset:
@@ -27,8 +28,8 @@ def list_chunks(dataset: Optional[str] = None) -> List[Dict[str,Any]]:
     agent.close()
     return chunks
 
-@router.get("/documents", response_model=List[Dict[str,Any]])
-def list_documents(doc_id: Optional[str] = None) -> List[Dict[str,Any]]:
+@router.get("/documents", response_model=list[dict[str,Any]])
+def list_documents(doc_id: str | None = None) -> list[dict[str,Any]]:
     agent = CodingAgent(DB_URL)
     cur = agent.conn.cursor()
     if doc_id:
@@ -41,9 +42,9 @@ def list_documents(doc_id: Optional[str] = None) -> List[Dict[str,Any]]:
     agent.close()
     return docs
 
-@router.get("/embeddings/search", response_model=List[Dict[str,Any]])
+@router.get("/embeddings/search", response_model=list[dict[str,Any]])
 def search_embeddings(
-    query: List[float] = Query(..., description="1536-dim embedding vector as comma separated list"),
+    query: list[float] = Query(..., description="1536-dim embedding vector as comma separated list"),
     top_k: int = 5
 ):
     agent = CodingAgent(DB_URL)

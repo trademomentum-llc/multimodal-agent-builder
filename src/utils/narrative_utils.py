@@ -1,10 +1,12 @@
 """Utilities for integrating Localized Narratives for enhanced image understanding."""
 
+# Postpone annotation evaluation: LocalizedNarrative may be None when the optional
+# localized_narratives package is unavailable.
+from __future__ import annotations
+
 import json
-import os
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 # Add localized-narratives to path
 project_root = Path(__file__).parent.parent.parent
@@ -22,11 +24,12 @@ except ImportError:
 class NarrativeEnhancer:
     """Enhances image understanding using Localized Narratives dataset."""
 
-    def __init__(self, data_dir: Optional[str] = None):
+    def __init__(self, data_dir: str | None = None):
         """Initialize the Narrative Enhancer.
 
         Args:
             data_dir: Directory for storing narrative data
+
         """
         if data_dir is None:
             data_dir = str(project_root / "data" / "narratives")
@@ -43,6 +46,7 @@ class NarrativeEnhancer:
         Args:
             dataset: Dataset to download (e.g., 'coco_train', 'coco_val',
                     'open_images_train', 'flickr30k_train')
+
         """
         if not self.loader:
             raise ImportError("Localized Narratives module not available")
@@ -53,7 +57,7 @@ class NarrativeEnhancer:
 
     def load_narratives(
         self, dataset: str = "coco_val", max_narratives: int = 100
-    ) -> List[LocalizedNarrative]:
+    ) -> list[LocalizedNarrative]:
         """Load narrative annotations from local files.
 
         Args:
@@ -62,6 +66,7 @@ class NarrativeEnhancer:
 
         Returns:
             List of LocalizedNarrative objects
+
         """
         if not self.loader:
             raise ImportError("Localized Narratives module not available")
@@ -74,7 +79,7 @@ class NarrativeEnhancer:
 
         return narratives
 
-    def get_narrative_for_image(self, image_id: str) -> Optional[LocalizedNarrative]:
+    def get_narrative_for_image(self, image_id: str) -> LocalizedNarrative | None:
         """Get narrative for a specific image ID.
 
         Args:
@@ -82,10 +87,11 @@ class NarrativeEnhancer:
 
         Returns:
             LocalizedNarrative object or None
+
         """
         return self._narrative_cache.get(image_id)
 
-    def extract_image_description(self, narrative: LocalizedNarrative) -> Dict:
+    def extract_image_description(self, narrative: LocalizedNarrative) -> dict:
         """Extract structured description from a narrative.
 
         Args:
@@ -93,6 +99,7 @@ class NarrativeEnhancer:
 
         Returns:
             Dictionary with structured description
+
         """
         return {
             "image_id": narrative.image_id,
@@ -123,6 +130,7 @@ class NarrativeEnhancer:
 
         Returns:
             Training prompt string
+
         """
         if task == "describe":
             return f"Describe this image in detail: {narrative.caption}"
@@ -143,13 +151,14 @@ class NarrativeEnhancer:
             return narrative.caption
 
     def create_multimodal_training_data(
-        self, narratives: List[LocalizedNarrative], output_file: str
+        self, narratives: list[LocalizedNarrative], output_file: str
     ):
         """Create training data for multimodal models.
 
         Args:
             narratives: List of narratives
             output_file: Output JSON file path
+
         """
         training_data = []
 
@@ -182,7 +191,7 @@ class NarrativeEnhancer:
         return training_data
 
     def enhance_image_caption(
-        self, basic_caption: str, narrative: Optional[LocalizedNarrative] = None
+        self, basic_caption: str, narrative: LocalizedNarrative | None = None
     ) -> str:
         """Enhance a basic caption using narrative data.
 
@@ -192,6 +201,7 @@ class NarrativeEnhancer:
 
         Returns:
             Enhanced caption
+
         """
         if not narrative:
             return basic_caption
@@ -223,6 +233,7 @@ def create_narrative_enhanced_agent_prompt(
 
     Returns:
         Enhanced prompt string
+
     """
     narrative = enhancer.get_narrative_for_image(image_id)
 

@@ -5,7 +5,7 @@ agents or services can reference them for behavior grounding.
 """
 
 from pathlib import Path
-from typing import Dict, List
+
 try:
     from pypdf import PdfReader  # type: ignore
 except Exception:  # pragma: no cover
@@ -15,12 +15,12 @@ from config.config import settings
 from src.utils.logging_utils import logger
 
 
-def load_grounding_documents() -> Dict[str, str]:
+def load_grounding_documents() -> dict[str, str]:
     """Load text-like files from the configured ethics framework path.
 
     Returns a mapping of filename -> content. Non-fatal on errors.
     """
-    results: Dict[str, str] = {}
+    results: dict[str, str] = {}
     base = settings.ethics_framework_path.strip()
     if not base:
         return results
@@ -37,7 +37,7 @@ def load_grounding_documents() -> Dict[str, str]:
             elif f.is_file() and f.suffix.lower() in {".pdf"} and PdfReader is not None:
                 try:
                     reader = PdfReader(str(f))
-                    text_parts: List[str] = []
+                    text_parts: list[str] = []
                     for page in reader.pages[:50]:  # cap pages for performance
                         try:
                             text_parts.append(page.extract_text() or "")
@@ -57,7 +57,7 @@ def get_grounding_summary(max_chars: int = 4000) -> str:
     docs = load_grounding_documents()
     if not docs:
         return ""
-    parts: List[str] = []
+    parts: list[str] = []
     for name, content in sorted(docs.items()):
         parts.append(f"## {name}\n{content}\n")
         if sum(len(p) for p in parts) > max_chars:

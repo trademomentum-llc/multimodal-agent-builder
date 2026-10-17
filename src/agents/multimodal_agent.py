@@ -1,10 +1,8 @@
 """Multimodal agent implementation with text, image, and audio capabilities."""
 
 import base64
-import io
 import json
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import numpy as np
 from PIL import Image
@@ -17,10 +15,10 @@ from src.models.base_llm import BaseLLMClient, Message, MessageRole
 class MultimodalInput(BaseModel):
     """Multimodal input structure."""
 
-    text: Optional[str] = Field(default=None, description="Text input")
-    image: Optional[Union[str, bytes]] = Field(default=None, description="Image input")
-    audio: Optional[Union[str, bytes]] = Field(default=None, description="Audio input")
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    text: str | None = Field(default=None, description="Text input")
+    image: str | bytes | None = Field(default=None, description="Image input")
+    audio: str | bytes | None = Field(default=None, description="Audio input")
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class MultimodalAgentConfig(AgentConfig):
@@ -38,9 +36,9 @@ class MultimodalAgent(BaseAgent):
 
     def __init__(
         self,
-        config: Union[MultimodalAgentConfig, AgentConfig],
+        config: MultimodalAgentConfig | AgentConfig,
         llm_client: BaseLLMClient,
-        tools: Optional[List[Any]] = None,
+        tools: list[Any] | None = None,
     ):
         """Initialize multimodal agent.
 
@@ -48,6 +46,7 @@ class MultimodalAgent(BaseAgent):
             config: Agent configuration
             llm_client: LLM client to use
             tools: Optional list of tools
+
         """
         # Preserve original config object for equality checks in tests
         original_config = config
@@ -65,8 +64,8 @@ class MultimodalAgent(BaseAgent):
 
     async def think(
         self,
-        input_data: Union[str, Dict[str, Any], MultimodalInput],
-        context: Optional[List[Message]] = None,
+        input_data: str | dict[str, Any] | MultimodalInput,
+        context: list[Message] | None = None,
         **kwargs,
     ) -> str:
         """Multimodal thinking process.
@@ -78,6 +77,7 @@ class MultimodalAgent(BaseAgent):
 
         Returns:
             Thought/reasoning output
+
         """
         # Parse input
         if isinstance(input_data, str):
@@ -140,8 +140,8 @@ class MultimodalAgent(BaseAgent):
         return response.content if hasattr(response, "content") else str(response)
 
     async def act(
-        self, thought: str, available_actions: Optional[List[Dict[str, Any]]] = None, **kwargs
-    ) -> Dict[str, Any]:
+        self, thought: str, available_actions: list[dict[str, Any]] | None = None, **kwargs
+    ) -> dict[str, Any]:
         """Select and execute action based on thought.
 
         Args:
@@ -151,6 +151,7 @@ class MultimodalAgent(BaseAgent):
 
         Returns:
             Action result
+
         """
         # If tools are available and enabled, select appropriate tool
         if self.tools and self.config.enable_tools:
@@ -167,7 +168,7 @@ class MultimodalAgent(BaseAgent):
         # Default action: generate response
         return {"type": "response_generation", "thought": thought, "action": "generate_response"}
 
-    async def observe(self, action_result: Dict[str, Any], **kwargs) -> str:
+    async def observe(self, action_result: dict[str, Any], **kwargs) -> str:
         """Observe and interpret action result.
 
         Args:
@@ -176,6 +177,7 @@ class MultimodalAgent(BaseAgent):
 
         Returns:
             Observation/final response
+
         """
         if action_result["type"] == "tool_execution":
             # Interpret tool execution result
@@ -207,7 +209,7 @@ class MultimodalAgent(BaseAgent):
 
     async def process_image(
         self,
-        image: Union[str, bytes, Image.Image, np.ndarray],
+        image: str | bytes | Image.Image | np.ndarray,
         prompt: str = "What's in this image?",
         **kwargs,
     ) -> AgentResponse:
@@ -220,6 +222,7 @@ class MultimodalAgent(BaseAgent):
 
         Returns:
             Agent response
+
         """
         if not self.vision_enabled:
             return AgentResponse(
@@ -276,7 +279,7 @@ class MultimodalAgent(BaseAgent):
             )
 
     async def process_audio(
-        self, audio: Union[str, bytes], task: str = "transcribe", **kwargs
+        self, audio: str | bytes, task: str = "transcribe", **kwargs
     ) -> AgentResponse:
         """Process audio input.
 
@@ -287,6 +290,7 @@ class MultimodalAgent(BaseAgent):
 
         Returns:
             Agent response
+
         """
         # Note: Audio processing would typically require additional services
         # like OpenAI's Whisper API or Google's Speech-to-Text
@@ -309,6 +313,7 @@ class MultimodalAgent(BaseAgent):
 
         Returns:
             Agent response
+
         """
         try:
             # Run the full think-act-observe cycle with multimodal input
@@ -342,6 +347,7 @@ class MultimodalAgent(BaseAgent):
 
         Returns:
             Thinking prompt
+
         """
         prompt_parts = []
 
@@ -369,7 +375,7 @@ class MultimodalAgent(BaseAgent):
 
         return "\n".join(prompt_parts)
 
-    async def _select_tool_action(self, thought: str, tools: List[Any]) -> Optional[Dict[str, Any]]:
+    async def _select_tool_action(self, thought: str, tools: list[Any]) -> dict[str, Any] | None:
         """Select appropriate tool based on thought.
 
         Args:
@@ -378,12 +384,13 @@ class MultimodalAgent(BaseAgent):
 
         Returns:
             Selected action or None
+
         """
         # This would typically use the LLM to select the appropriate tool
         # For now, returning None to use default action
         return None
 
-    async def _execute_tool(self, action: Dict[str, Any]) -> Any:
+    async def _execute_tool(self, action: dict[str, Any]) -> Any:
         """Execute a selected tool.
 
         Args:
@@ -391,6 +398,7 @@ class MultimodalAgent(BaseAgent):
 
         Returns:
             Tool execution result
+
         """
         # Placeholder for tool execution
         # Would integrate with LangChain tools or custom implementations
@@ -404,15 +412,17 @@ class MultimodalAgent(BaseAgent):
 
         Returns:
             Image bytes
+
         """
         with open(path, "rb") as f:
             return f.read()
 
-    def get_capabilities(self) -> Dict[str, bool]:
+    def get_capabilities(self) -> dict[str, bool]:
         """Get agent capabilities.
 
         Returns:
             Dictionary of capabilities
+
         """
         return {
             "text": True,
