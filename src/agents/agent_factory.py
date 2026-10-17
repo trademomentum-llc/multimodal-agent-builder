@@ -3,7 +3,7 @@
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from langchain.tools import BaseTool
+from langchain_core.tools import BaseTool
 
 from config.config import settings
 from src.agents.base_agent import AgentConfig, BaseAgent

@@ -3,11 +3,11 @@
 import json
 from typing import Any, Dict, List, Optional, Union
 
-from langchain.agents import AgentExecutor, create_react_agent
-from langchain.memory import ConversationBufferMemory
-from langchain.prompts import PromptTemplate
-from langchain.schema import BaseMessage, HumanMessage, SystemMessage
-from langchain.tools import BaseTool, Tool
+from langchain_classic.agents import AgentExecutor, create_react_agent
+from langchain_classic.memory import ConversationBufferMemory
+from langchain_core.prompts import PromptTemplate
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_core.tools import BaseTool, Tool
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.language_models import BaseLLM
 from langchain_google_genai import ChatGoogleGenerativeAI
