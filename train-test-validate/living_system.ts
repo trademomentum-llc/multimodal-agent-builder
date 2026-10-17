@@ -154,3 +154,10 @@ class AdaptiveRecursionLedger {
 
 // To use in Replit, save this file as `living_system_agents.ts`
 // Export relevant classes if using modules.
+
+export {
+  ClosureRecognitionAgent,
+  StepFragmentSequenceEngine,
+  ArchitectureComparator,
+  AdaptiveRecursionLedger,
+};

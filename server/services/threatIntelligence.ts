@@ -9,17 +9,6 @@ interface ThreatPattern {
   scoreMultiplier: number;
 }
 
-interface BlacklistEntry {
-  ipAddress: string;
-  reason: string;
-  threatLevel: 'low' | 'medium' | 'high' | 'critical';
-  attemptCount: number;
-  blockedUntil: Date;
-  userAgent?: string;
-  requestPatterns?: any[];
-  threatIntelligence?: any;
-}
-
 export class ThreatIntelligenceService {
   private readonly maxLoginAttempts = 5;
   private readonly maxApiAttempts = 50;
@@ -60,7 +49,7 @@ export class ThreatIntelligenceService {
 
     // Command injection
     {
-      pattern: /(\||\&\&|\;|\$\(|\`|system\(|exec\(|eval\()/i,
+      pattern: /(\||&&|;|\$\(|`|system\(|exec\(|eval\()/i,
       description: 'Command injection attempt',
       threatLevel: 'critical',
       scoreMultiplier: 4,
@@ -254,7 +243,10 @@ export class ThreatIntelligenceService {
           blockedUntil: newBlockedUntil,
           requestPatterns: threatAnalysis?.patterns || [],
           threatIntelligence: {
-            ...((existingEntry.threatIntelligence as any) || {}),
+            ...((existingEntry.threatIntelligence ?? {}) as Record<
+              string,
+              unknown
+            >),
             lastThreatScore: threatAnalysis?.score || 0,
             escalationCount: newAttemptCount,
             analysisTimestamp: new Date().toISOString(),
@@ -424,7 +416,7 @@ export class ThreatIntelligenceService {
   /**
    * Get blacklist statistics for security dashboard
    */
-  public async getBlacklistStats(): Promise<any> {
+  public async getBlacklistStats(): Promise<unknown> {
     try {
       const stats = await storage.getBlacklistStats();
       return stats;

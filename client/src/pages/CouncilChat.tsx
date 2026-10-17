@@ -35,7 +35,8 @@ export default function CouncilChat() {
   const [prompt, setPrompt] = useState('');
   const [editedPrompt, setEditedPrompt] = useState('');
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [currentOutcome, setCurrentOutcome] = useState<CouncilChatResponse | null>(null);
+  const [currentOutcome, setCurrentOutcome] =
+    useState<CouncilChatResponse | null>(null);
   const [history, setHistory] = useState<CouncilChatResponse[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -84,7 +85,9 @@ export default function CouncilChat() {
     }
   };
 
-  const submitDecision = async (decision: 'approve' | 'deny' | 'edit' | 'revise') => {
+  const submitDecision = async (
+    decision: 'approve' | 'deny' | 'edit' | 'revise',
+  ) => {
     if (!currentOutcome) return;
     setIsSubmitting(true);
     try {
@@ -111,7 +114,12 @@ export default function CouncilChat() {
       };
       setCurrentOutcome(nextOutcome);
       toast({
-        title: decision === 'approve' ? 'Approved' : decision === 'deny' ? 'Denied' : 'Updated',
+        title:
+          decision === 'approve'
+            ? 'Approved'
+            : decision === 'deny'
+              ? 'Denied'
+              : 'Updated',
         description:
           decision === 'edit'
             ? 'Council reran on the edited prompt.'
@@ -135,7 +143,11 @@ export default function CouncilChat() {
     if (!currentOutcome) return null;
     const status = currentOutcome.recommended_action;
     if (status === 'approve') {
-      return <Badge className="bg-emerald-100 text-emerald-700">Council: Approve</Badge>;
+      return (
+        <Badge className="bg-emerald-100 text-emerald-700">
+          Council: Approve
+        </Badge>
+      );
     }
     if (status === 'deny') {
       return <Badge variant="destructive">Council: Deny</Badge>;
@@ -162,8 +174,8 @@ export default function CouncilChat() {
                       <span>Send a prompt to the council</span>
                     </CardTitle>
                     <CardDescription>
-                      Each provider responds independently; the council chair proposes a
-                      recommendation.
+                      Each provider responds independently; the council chair
+                      proposes a recommendation.
                     </CardDescription>
                   </div>
                   {statusBadge}
@@ -177,7 +189,10 @@ export default function CouncilChat() {
                   className="min-h-[140px]"
                 />
                 <div className="flex items-center space-x-3">
-                  <Button onClick={() => runCouncil()} disabled={isSubmitting || !prompt.trim()}>
+                  <Button
+                    onClick={() => runCouncil()}
+                    disabled={isSubmitting || !prompt.trim()}
+                  >
                     <Wand2 className="w-4 h-4 mr-2" />
                     Run council
                   </Button>
@@ -194,7 +209,8 @@ export default function CouncilChat() {
                   </Button>
                   {currentOutcome && (
                     <Badge variant="secondary" className="ml-auto">
-                      Conversation: {currentOutcome.conversation_id.slice(0, 8)}…
+                      Conversation: {currentOutcome.conversation_id.slice(0, 8)}
+                      …
                     </Badge>
                   )}
                 </div>
@@ -213,11 +229,14 @@ export default function CouncilChat() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="text-sm text-gray-700 dark:text-gray-200 min-h-[120px] whitespace-pre-line">
-                  {currentOutcome?.council_summary || 'Run a prompt to see council output.'}
+                  {currentOutcome?.council_summary ||
+                    'Run a prompt to see council output.'}
                 </div>
                 <Separator />
                 <div className="space-y-2">
-                  <label className="text-xs text-gray-500">Edit before approval (optional)</label>
+                  <label className="text-xs text-gray-500">
+                    Edit before approval (optional)
+                  </label>
                   <Textarea
                     value={editedPrompt}
                     onChange={(e) => setEditedPrompt(e.target.value)}
@@ -256,7 +275,8 @@ export default function CouncilChat() {
                 <div className="flex items-center space-x-2 text-xs text-gray-500 pt-1">
                   <ShieldCheck className="w-4 h-4" />
                   <span>
-                    Actions are recorded per conversation; edits rerun the council on your changes.
+                    Actions are recorded per conversation; edits rerun the
+                    council on your changes.
                   </span>
                 </div>
               </CardContent>
@@ -292,7 +312,9 @@ export default function CouncilChat() {
                     <CardHeader>
                       <CardTitle className="text-sm flex items-center justify-between">
                         <span>{item.prompt.slice(0, 48)}...</span>
-                        <Badge variant="outline">{item.recommended_action}</Badge>
+                        <Badge variant="outline">
+                          {item.recommended_action}
+                        </Badge>
                       </CardTitle>
                       <CardDescription className="text-xs">
                         {new Date(item.created_at).toLocaleString()}
@@ -331,7 +353,9 @@ function ModelCard({ member }: { member: CouncilMember }) {
           <p className="text-error text-sm">{member.error}</p>
         ) : (
           <>
-            <p className="font-medium text-gray-900 dark:text-white">Reasoning</p>
+            <p className="font-medium text-gray-900 dark:text-white">
+              Reasoning
+            </p>
             <p className="text-sm whitespace-pre-line">{member.reasoning}</p>
             <Separator />
             <p className="text-xs text-gray-500">

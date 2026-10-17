@@ -42,8 +42,8 @@ function getStatusConfig(status: string) {
   }
 }
 
-function getApprovalTypeIcon(type: string) {
-  // Return appropriate icons based on approval type
+function getApprovalTypeIcon() {
+  // Single icon for now; extend with a per-type mapping when types diverge
   return AlertCircle; // Default icon
 }
 
@@ -55,7 +55,7 @@ export default function ApprovalCard({
 }: ApprovalCardProps) {
   const statusConfig = getStatusConfig(approval.status);
   const StatusIcon = statusConfig.icon;
-  const TypeIcon = getApprovalTypeIcon(approval.type);
+  const TypeIcon = getApprovalTypeIcon();
 
   const isPending = approval.status === 'pending';
   const isCompleted =

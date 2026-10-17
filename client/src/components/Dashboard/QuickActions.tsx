@@ -66,7 +66,7 @@ export default function QuickActions() {
             description: `${name} workflow activated`,
           });
       }
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: `Failed to activate ${name}`,

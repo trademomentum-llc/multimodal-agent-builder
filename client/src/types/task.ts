@@ -7,8 +7,8 @@ export interface Task {
   description?: string;
   status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
   priority: 'low' | 'medium' | 'high';
-  payload?: Record<string, any>;
-  result?: Record<string, any>;
+  payload?: Record<string, unknown>;
+  result?: Record<string, unknown>;
   error?: string;
   scheduledFor?: Date;
   startedAt?: Date;
@@ -26,7 +26,7 @@ export interface Approval {
   title: string;
   description?: string;
   status: 'pending' | 'approved' | 'rejected';
-  requestData?: Record<string, any>;
+  requestData?: Record<string, unknown>;
   suggestedResponse?: string;
   reviewedBy?: string;
   reviewedAt?: Date;
@@ -41,7 +41,7 @@ export interface Activity {
   taskId?: number;
   type: string;
   message: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   createdAt?: Date;
 }
 
@@ -51,6 +51,6 @@ export interface CreateTaskRequest {
   title: string;
   description?: string;
   priority?: 'low' | 'medium' | 'high';
-  payload?: Record<string, any>;
+  payload?: Record<string, unknown>;
   scheduledFor?: Date;
 }

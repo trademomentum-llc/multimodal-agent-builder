@@ -8,17 +8,16 @@ import { auditLogger } from './auditLogger';
 import OpenAI from 'openai';
 import { nanoid } from 'nanoid';
 import {
-  Agent,
   MultimodalSession,
   MultimodalInteraction,
   MultimodalFile,
 } from '../../shared/schema';
 
-interface MultimodalInput {
+export interface MultimodalInput {
   text?: string;
   image?: string | Buffer; // base64 or buffer
   audio?: string | Buffer; // base64 or buffer
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 interface AgentResponse {
@@ -34,7 +33,7 @@ interface AgentResponse {
   modalities?: string[];
   processingTime?: number;
   cost?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   state?: string;
   error?: string;
 }
@@ -639,7 +638,11 @@ export class MultimodalAgentService {
         throw new Error('Failed to create or retrieve session');
       }
 
-      const processedInputs: any = { text: inputs.text };
+      const processedInputs: {
+        text?: string;
+        imageBase64?: string;
+        audioTranscription?: string;
+      } = { text: inputs.text };
       const usedModalities: string[] = ['text'];
       const files: MultimodalFile[] = [];
 
@@ -728,7 +731,8 @@ export class MultimodalAgentService {
         });
       }
 
-      const messageContent: any[] = [{ type: 'text', text: prompt }];
+      const messageContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] =
+        [{ type: 'text', text: prompt }];
 
       if (processedInputs.imageBase64) {
         messageContent.push({

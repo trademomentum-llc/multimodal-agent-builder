@@ -15,7 +15,6 @@ import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { apiRequest } from '@/lib/queryClient';
 import { isUnauthorizedError } from '@/lib/authUtils';
 import Sidebar from '@/components/Layout/Sidebar';
@@ -200,7 +199,7 @@ export default function NationalReserve() {
   };
 
   const getRankIcon = (rank: string) => {
-    const icons: Record<string, any> = {
+    const icons: Record<string, unknown> = {
       five_star_general: Crown,
       general: Star,
       colonel: Shield,

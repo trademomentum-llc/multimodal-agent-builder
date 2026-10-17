@@ -45,7 +45,7 @@ export const securityMiddleware = helmet({
 export const cspWithNonce = () => {
   return (req: Request, res: Response, next: NextFunction) => {
     const nonce = crypto.randomBytes(16).toString('base64');
-    (res.locals as any).cspNonce = nonce;
+    res.locals.cspNonce = nonce;
 
     const isDev = process.env.NODE_ENV !== 'production';
     const scriptSrc = ["'self'", `'nonce-${nonce}'`];
@@ -132,7 +132,7 @@ export const sanitizeInput = (
   next: NextFunction,
 ) => {
   // Recursively sanitize object properties
-  const sanitizeObject = (obj: any): any => {
+  const sanitizeObject = (obj: unknown): unknown => {
     if (typeof obj === 'string') {
       // Robust HTML/script tag removal using sanitize-html
       return sanitizeHtml(obj, {
@@ -146,10 +146,12 @@ export const sanitizeInput = (
     }
 
     if (obj && typeof obj === 'object') {
-      const sanitized: any = {};
+      const sanitized: Record<string, unknown> = {};
       for (const key in obj) {
-        if (obj.hasOwnProperty(key)) {
-          sanitized[key] = sanitizeObject(obj[key]);
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          sanitized[key] = sanitizeObject(
+            (obj as Record<string, unknown>)[key],
+          );
         }
       }
       return sanitized;
@@ -163,7 +165,7 @@ export const sanitizeInput = (
   }
 
   if (req.query) {
-    req.query = sanitizeObject(req.query);
+    req.query = sanitizeObject(req.query) as typeof req.query;
   }
 
   next();

@@ -7,11 +7,8 @@ import {
   activities,
   auditLog,
   credentials,
-  models,
   flywheelRuns,
   modelEvaluations,
-  trafficLogs,
-  optimizations,
   multimodalSessions,
   multimodalInteractions,
   multimodalFiles,
@@ -32,13 +29,10 @@ import {
   type InsertAuditLogEntry,
   type Credential,
   type InsertCredential,
-  type Model,
   type FlywheelRun,
   type InsertFlywheelRun,
   type ModelEvaluation,
   type InsertModelEvaluation,
-  type TrafficLog,
-  type Optimization,
   type MultimodalSession,
   type InsertMultimodalSession,
   type MultimodalInteraction,
@@ -179,7 +173,7 @@ export interface IStorage {
     notes?: string,
   ): Promise<void>;
   cleanupExpiredBlacklist(): Promise<void>;
-  getBlacklistStats(): Promise<any>;
+  getBlacklistStats(): Promise<unknown>;
   getRecentFailedAttempts(
     ipAddress: string,
     windowMinutes: number,
@@ -675,7 +669,7 @@ export class DatabaseStorage implements IStorage {
       );
   }
 
-  async getBlacklistStats(): Promise<any> {
+  async getBlacklistStats(): Promise<unknown> {
     const totalBlocked = await db
       .select({ count: count() })
       .from(securityBlacklist);

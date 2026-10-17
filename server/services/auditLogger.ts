@@ -3,9 +3,11 @@ import { storage } from '../storage';
 import { Request } from 'express';
 
 /** Audit metadata is stored as untyped JSONB; read it as a plain record. */
-function auditMetadata(log: { metadata: unknown }): Record<string, any> | null {
+function auditMetadata(log: {
+  metadata: unknown;
+}): Record<string, unknown> | null {
   return log.metadata && typeof log.metadata === 'object'
-    ? (log.metadata as Record<string, any>)
+    ? (log.metadata as Record<string, unknown>)
     : null;
 }
 
@@ -18,7 +20,7 @@ class AuditLogger {
     req?: Request | null,
     success: boolean = true,
     error?: string | null,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
   ): Promise<void> {
     try {
       const auditEntry: InsertAuditLogEntry = {
@@ -66,7 +68,7 @@ class AuditLogger {
     userId: string | null,
     action: string,
     resource: string,
-    metadata: Record<string, any>,
+    metadata: Record<string, unknown>,
     req?: Request | null,
     success: boolean = true,
     error?: string | null,
@@ -89,7 +91,7 @@ class AuditLogger {
     severity: 'low' | 'medium' | 'high' | 'critical',
     description: string,
     req?: Request | null,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
   ): Promise<void> {
     const action = `security.${eventType}`;
     const success = severity !== 'critical';
@@ -129,7 +131,7 @@ class AuditLogger {
       | 'password_change'
       | 'account_locked',
     req?: Request | null,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
   ): Promise<void> {
     const success =
       !eventType.includes('failure') && eventType !== 'account_locked';
@@ -152,7 +154,7 @@ class AuditLogger {
     resourceId: string,
     operation: 'read' | 'write' | 'delete',
     req?: Request | null,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
   ): Promise<void> {
     await this.log(
       userId,
@@ -174,7 +176,7 @@ class AuditLogger {
     eventType: string,
     description: string,
     success: boolean = true,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
   ): Promise<void> {
     await this.log(
       null,
@@ -196,7 +198,7 @@ class AuditLogger {
     userId: string,
     timeRange: { from: Date; to: Date },
     severity?: 'low' | 'medium' | 'high' | 'critical',
-  ): Promise<any[]> {
+  ): Promise<unknown[]> {
     // This would fetch security-related audit logs
     const auditLogs = await storage.getAuditLogs(userId, 100);
 

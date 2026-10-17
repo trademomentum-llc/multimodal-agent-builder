@@ -45,7 +45,7 @@ interface WorkflowStep {
   name: string;
   description: string;
   type: 'analysis' | 'action' | 'decision' | 'communication';
-  parameters: Record<string, any>;
+  parameters: Record<string, unknown>;
   expectedOutput: string;
   nextSteps: string[];
 }
@@ -278,7 +278,7 @@ class BERTFoundationModel implements FoundationModel {
   }
 
   // Enhanced capabilities for National Reserve integration
-  async analyzePatterns(data: string[], context: string): Promise<any> {
+  async analyzePatterns(data: string[], context: string): Promise<unknown> {
     const prompt = `
     Analyze the following data patterns for the National Reserve system:
     
@@ -297,8 +297,8 @@ class BERTFoundationModel implements FoundationModel {
 
   async optimizeAgentConfiguration(
     agentType: string,
-    performance: any,
-  ): Promise<any> {
+    performance: Record<string, unknown>,
+  ): Promise<unknown> {
     const prompt = `
     Optimize configuration for ${agentType} agent based on performance metrics:
     

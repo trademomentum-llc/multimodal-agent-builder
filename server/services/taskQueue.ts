@@ -1,4 +1,4 @@
-import { Task, InsertTask } from '@shared/schema';
+import type { InsertTask, Task } from '@shared/schema';
 import { storage } from '../storage';
 import { agentFactory } from './agentFactory';
 import { auditLogger } from './auditLogger';
@@ -108,7 +108,7 @@ class TaskQueue {
         { taskType: task.type, agentId: task.agentId },
       );
 
-      let result: any;
+      let result: unknown;
 
       // Check if task is scheduled for future execution
       if (task.scheduledFor && new Date(task.scheduledFor) > new Date()) {
@@ -133,7 +133,7 @@ class TaskQueue {
         result = await agentFactory.executeAgentTask(
           task.agentId,
           task.type,
-          task.payload,
+          (task.payload ?? {}) as Record<string, unknown>,
         );
       } else {
         result = await this.executeSystemTask(task);
@@ -142,7 +142,7 @@ class TaskQueue {
       // Update task as completed
       await storage.updateTask(task.id, {
         status: 'completed',
-        result,
+        result: result as InsertTask['result'],
         completedAt: new Date(),
       });
 
@@ -234,7 +234,7 @@ class TaskQueue {
     }
   }
 
-  private async executeSystemTask(task: Task): Promise<any> {
+  private async executeSystemTask(task: Task): Promise<unknown> {
     switch (task.type) {
       case 'system.cleanup':
         return await this.performSystemCleanup();
@@ -247,7 +247,7 @@ class TaskQueue {
     }
   }
 
-  private async performSystemCleanup(): Promise<any> {
+  private async performSystemCleanup(): Promise<unknown> {
     // Simulate system cleanup
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -259,7 +259,7 @@ class TaskQueue {
     };
   }
 
-  private async performSystemBackup(): Promise<any> {
+  private async performSystemBackup(): Promise<unknown> {
     // Simulate system backup
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
@@ -271,7 +271,7 @@ class TaskQueue {
     };
   }
 
-  private async performSecurityScan(): Promise<any> {
+  private async performSecurityScan(): Promise<unknown> {
     // Simulate security scan
     await new Promise((resolve) => setTimeout(resolve, 3000));
 

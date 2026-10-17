@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,14 +11,10 @@ import {
   MessageCircle,
   Image as ImageIcon,
   Mic,
-  Upload,
   Send,
   Brain,
   Eye,
   Volume2,
-  FileText,
-  CheckCircle,
-  AlertCircle,
   Loader2,
   Trash2,
   Zap,
@@ -43,7 +39,7 @@ interface MultimodalResponse {
   modalities?: string[];
   processingTime?: number;
   cost?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   state?: string;
 }
 
@@ -62,7 +58,6 @@ export default function MultimodalInterface({
   onClose,
 }: MultimodalInterfaceProps) {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [textInput, setTextInput] = useState('');

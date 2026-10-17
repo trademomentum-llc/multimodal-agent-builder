@@ -1,3 +1,4 @@
+import type { AuthUser } from './authTypes';
 import * as client from 'openid-client';
 import { Strategy, type VerifyFunction } from 'openid-client/passport';
 
@@ -57,22 +58,22 @@ export function getCsrfProtection(): RequestHandler {
 }
 
 function updateUserSession(
-  user: any,
+  user: Partial<AuthUser>,
   tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
 ) {
-  user.claims = tokens.claims();
+  user.claims = tokens.claims() as AuthUser['claims'] | undefined;
   user.access_token = tokens.access_token;
   user.refresh_token = tokens.refresh_token;
   user.expires_at = user.claims?.exp;
 }
 
-async function upsertUser(claims: any) {
+async function upsertUser(claims: client.IDToken) {
   await storage.upsertUser({
     id: claims['sub'],
-    email: claims['email'],
-    firstName: claims['first_name'],
-    lastName: claims['last_name'],
-    profileImageUrl: claims['profile_image_url'],
+    email: claims['email'] as string | undefined,
+    firstName: claims['first_name'] as string | undefined,
+    lastName: claims['last_name'] as string | undefined,
+    profileImageUrl: claims['profile_image_url'] as string | undefined,
   });
 }
 
@@ -96,9 +97,14 @@ export async function setupAuth(app: Express) {
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
     verified: passport.AuthenticateCallback,
   ) => {
-    const user = {};
+    const user: Partial<AuthUser> = {};
     updateUserSession(user, tokens);
-    await upsertUser(tokens.claims());
+    const claims = tokens.claims();
+    if (!claims) {
+      verified(new Error('OIDC token response contained no ID token claims'));
+      return;
+    }
+    await upsertUser(claims);
     verified(null, user);
   };
 
@@ -145,9 +151,9 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
-  const user = req.user as any;
+  const user = req.user as Partial<AuthUser> | undefined;
 
-  if (!req.isAuthenticated() || !user.expires_at) {
+  if (!req.isAuthenticated() || !user?.expires_at) {
     return res.status(401).json({ message: 'Unauthorized' });
   }
 
@@ -167,7 +173,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
     updateUserSession(user, tokenResponse);
     return next();
-  } catch (error) {
+  } catch {
     res.status(401).json({ message: 'Unauthorized' });
     return;
   }
