@@ -122,7 +122,9 @@ async def start_training(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-async def run_training_async(agent_name: str, dataset_type: str, epochs: int, enable_closure: bool):
+async def run_training_async(
+    agent_name: str, dataset_type: str, epochs: int, enable_closure: bool
+) -> None:
     """Run training asynchronously.
 
     Args:
@@ -391,7 +393,9 @@ async def list_available_datasets() -> dict[str, Any]:
         if train_path.exists():
             datasets["open_images"]["training_files"] = [
                 f.name for f in train_path.glob("*.jsonl")
-            ][:5]  # Limit to 5 for display
+            ][
+                :5
+            ]  # Limit to 5 for display
 
         # Validation files
         val_path = base_path / "ML-Validation"

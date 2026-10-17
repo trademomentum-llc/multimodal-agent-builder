@@ -4,19 +4,22 @@ import io
 from collections.abc import AsyncGenerator
 from typing import Any
 
-import google.generativeai as genai
 import numpy as np
+from google.generativeai.client import configure as genai_configure
+from google.generativeai.embedding import embed_content
+from google.generativeai.generative_models import GenerativeModel
+from google.generativeai.types import ContentDict, GenerationConfig
 from PIL import Image
 
 from config.config import settings
-from src.models.base_llm import BaseLLMClient, LLMResponse, Message, MessageRole
+from src.models.base_llm import BaseLLMClient, LLMResponse, Message, MessageRole, ModelCapabilities
 
 
 class GeminiClient(BaseLLMClient):
     """Google Gemini client implementation."""
 
     # Model capabilities mapping
-    MODEL_CAPABILITIES = {
+    MODEL_CAPABILITIES: dict[str, ModelCapabilities] = {
         "gemini-2.5-flash": {
             "vision": True,
             "functions": True,
@@ -67,8 +70,8 @@ class GeminiClient(BaseLLMClient):
         model: str | None = None,
         max_tokens: int | None = None,
         temperature: float | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """Initialize Gemini client.
 
         Args:
@@ -89,10 +92,10 @@ class GeminiClient(BaseLLMClient):
         super().__init__(api_key, model, max_tokens, temperature, **kwargs)
 
         # Configure the Gemini API
-        genai.configure(api_key=self.api_key)
+        genai_configure(api_key=self.api_key)
 
         # Initialize the model
-        self.model_instance = genai.GenerativeModel(self.model)
+        self.model_instance = GenerativeModel(self.model)
 
         # Safety settings
         self.safety_settings = kwargs.get(
@@ -106,7 +109,7 @@ class GeminiClient(BaseLLMClient):
         )
 
     async def generate(
-        self, messages: list[Message], functions: list[dict[str, Any]] | None = None, **kwargs
+        self, messages: list[Message], functions: list[dict[str, Any]] | None = None, **kwargs: Any
     ) -> LLMResponse:
         """Generate a response from Gemini.
 
@@ -123,7 +126,7 @@ class GeminiClient(BaseLLMClient):
         gemini_messages = self._convert_messages_to_gemini(messages)
 
         # Generation configuration
-        generation_config = genai.GenerationConfig(
+        generation_config = GenerationConfig(
             max_output_tokens=kwargs.get("max_tokens", self.max_tokens),
             temperature=kwargs.get("temperature", self.temperature),
             top_p=kwargs.get("top_p", 1.0),
@@ -157,7 +160,9 @@ class GeminiClient(BaseLLMClient):
             raw_response=response,
         )
 
-    async def generate_stream(self, messages: list[Message], **kwargs) -> AsyncGenerator[str, None]:
+    async def generate_stream(
+        self, messages: list[Message], **kwargs: Any
+    ) -> AsyncGenerator[str, None]:
         """Generate a streaming response from Gemini.
 
         Args:
@@ -170,7 +175,7 @@ class GeminiClient(BaseLLMClient):
         """
         gemini_messages = self._convert_messages_to_gemini(messages)
 
-        generation_config = genai.GenerationConfig(
+        generation_config = GenerationConfig(
             max_output_tokens=kwargs.get("max_tokens", self.max_tokens),
             temperature=kwargs.get("temperature", self.temperature),
             top_p=kwargs.get("top_p", 1.0),
@@ -189,7 +194,7 @@ class GeminiClient(BaseLLMClient):
                 yield chunk.text
 
     async def generate_with_image(
-        self, prompt: str, image: str | bytes | Image.Image | np.ndarray, **kwargs
+        self, prompt: str, image: str | bytes | Image.Image | np.ndarray, **kwargs: Any
     ) -> LLMResponse:
         """Generate a response based on text and image input.
 
@@ -209,9 +214,9 @@ class GeminiClient(BaseLLMClient):
         processed_image = self._process_image_for_gemini(image)
 
         # Create content with image
-        content = [prompt, processed_image]
+        content: list[str | Image.Image] = [prompt, processed_image]
 
-        generation_config = genai.GenerationConfig(
+        generation_config = GenerationConfig(
             max_output_tokens=kwargs.get("max_tokens", self.max_tokens),
             temperature=kwargs.get("temperature", self.temperature),
         )
@@ -229,7 +234,7 @@ class GeminiClient(BaseLLMClient):
         )
 
     async def generate_embeddings(
-        self, text: str | list[str], model: str = "models/text-embedding-004", **kwargs
+        self, text: str | list[str], model: str = "models/text-embedding-004", **kwargs: Any
     ) -> list[float] | list[list[float]]:
         """Generate embeddings for text.
 
@@ -247,7 +252,7 @@ class GeminiClient(BaseLLMClient):
 
         embeddings = []
         for t in texts:
-            result = genai.embed_content(
+            result = embed_content(
                 model=model,
                 content=t,
                 task_type="retrieval_document",
@@ -270,7 +275,7 @@ class GeminiClient(BaseLLMClient):
         # Use Gemini's count_tokens method
         return self.model_instance.count_tokens(text).total_tokens
 
-    def _convert_messages_to_gemini(self, messages: list[Message]) -> list[dict[str, Any]]:
+    def _convert_messages_to_gemini(self, messages: list[Message]) -> list[ContentDict]:
         """Convert messages to Gemini format.
 
         Args:
@@ -280,7 +285,7 @@ class GeminiClient(BaseLLMClient):
             List of Gemini-formatted messages
 
         """
-        gemini_messages = []
+        gemini_messages: list[ContentDict] = []
 
         for msg in messages:
             role = "user" if msg.role in [MessageRole.USER, MessageRole.SYSTEM] else "model"
@@ -305,7 +310,7 @@ class GeminiClient(BaseLLMClient):
 
         return gemini_messages
 
-    def _convert_functions_to_tools(self, functions: list[dict[str, Any]]) -> list[Any]:
+    def _convert_functions_to_tools(self, functions: list[dict[str, Any]]) -> list[Any] | None:
         """Convert OpenAI-style functions to Gemini tools.
 
         Args:
@@ -343,7 +348,7 @@ class GeminiClient(BaseLLMClient):
         else:
             raise ValueError(f"Unsupported image type: {type(image)}")
 
-    def _extract_usage(self, response) -> dict[str, int]:
+    def _extract_usage(self, response: Any) -> dict[str, int]:
         """Extract usage information from response.
 
         Args:
@@ -365,7 +370,7 @@ class GeminiClient(BaseLLMClient):
 
         return usage
 
-    def _get_finish_reason(self, response) -> str:
+    def _get_finish_reason(self, response: Any) -> str:
         """Get finish reason from response.
 
         Args:
@@ -384,17 +389,17 @@ class GeminiClient(BaseLLMClient):
     @property
     def supports_functions(self) -> bool:
         """Check if model supports function calling."""
-        return self.MODEL_CAPABILITIES.get(self.model, {"functions": False})["functions"]
+        return self.MODEL_CAPABILITIES.get(self.model, {}).get("functions", False)
 
     @property
     def supports_vision(self) -> bool:
         """Check if model supports vision inputs."""
-        return self.MODEL_CAPABILITIES.get(self.model, {"vision": False})["vision"]
+        return self.MODEL_CAPABILITIES.get(self.model, {}).get("vision", False)
 
     @property
     def supports_streaming(self) -> bool:
         """Check if model supports streaming."""
-        return self.MODEL_CAPABILITIES.get(self.model, {"streaming": True})["streaming"]
+        return self.MODEL_CAPABILITIES.get(self.model, {}).get("streaming", True)
 
     @property
     def max_context_length(self) -> int:

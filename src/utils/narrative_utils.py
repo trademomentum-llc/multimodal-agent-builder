@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 # Add localized-narratives to path
 project_root = Path(__file__).parent.parent.parent
@@ -24,7 +25,7 @@ except ImportError:
 class NarrativeEnhancer:
     """Enhances image understanding using Localized Narratives dataset."""
 
-    def __init__(self, data_dir: str | None = None):
+    def __init__(self, data_dir: str | None = None) -> None:
         """Initialize the Narrative Enhancer.
 
         Args:
@@ -38,9 +39,9 @@ class NarrativeEnhancer:
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
         self.loader = DataLoader(str(self.data_dir)) if DataLoader else None
-        self._narrative_cache = {}
+        self._narrative_cache: dict[str, Any] = {}
 
-    def download_narratives(self, dataset: str = "coco_val"):
+    def download_narratives(self, dataset: str = "coco_val") -> None:
         """Download narrative annotations for a dataset.
 
         Args:
@@ -91,7 +92,7 @@ class NarrativeEnhancer:
         """
         return self._narrative_cache.get(image_id)
 
-    def extract_image_description(self, narrative: LocalizedNarrative) -> dict:
+    def extract_image_description(self, narrative: LocalizedNarrative) -> dict[str, Any]:
         """Extract structured description from a narrative.
 
         Args:
@@ -114,9 +115,9 @@ class NarrativeEnhancer:
             ],
             "trace_points": len(narrative.traces),
             "dataset": narrative.dataset_id,
-            "voice_url": narrative.voice_recording_url
-            if hasattr(narrative, "voice_recording_url")
-            else None,
+            "voice_url": (
+                narrative.voice_recording_url if hasattr(narrative, "voice_recording_url") else None
+            ),
         }
 
     def generate_training_prompt(
@@ -148,11 +149,11 @@ class NarrativeEnhancer:
             )
 
         else:
-            return narrative.caption
+            return str(narrative.caption)
 
     def create_multimodal_training_data(
         self, narratives: list[LocalizedNarrative], output_file: str
-    ):
+    ) -> list[dict[str, Any]]:
         """Create training data for multimodal models.
 
         Args:

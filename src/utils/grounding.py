@@ -7,7 +7,7 @@ agents or services can reference them for behavior grounding.
 from pathlib import Path
 
 try:
-    from pypdf import PdfReader  # type: ignore
+    from pypdf import PdfReader
 except Exception:  # pragma: no cover
     PdfReader = None  # type: ignore
 

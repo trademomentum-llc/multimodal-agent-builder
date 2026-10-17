@@ -1,6 +1,5 @@
 """Lightweight API key issuance and management endpoints."""
 
-
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 

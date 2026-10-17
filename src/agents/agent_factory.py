@@ -38,7 +38,7 @@ class AgentFactory:
 
     @staticmethod
     def create_llm_client(
-        provider: str | LLMProvider, model: str | None = None, **kwargs
+        provider: str | LLMProvider, model: str | None = None, **kwargs: Any
     ) -> BaseLLMClient:
         """Create an LLM client.
 
@@ -80,7 +80,7 @@ class AgentFactory:
         description: str = "",
         system_prompt: str | None = None,
         tools: list[Any] | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> BaseAgent:
         """Create an AI agent.
 
@@ -102,9 +102,7 @@ class AgentFactory:
 
         """
         # Support alias 'type' provided by callers
-        if "type" in kwargs and (
-            not isinstance(agent_type, str) or agent_type == AgentType.MULTIMODAL
-        ):
+        if "type" in kwargs and not isinstance(agent_type, str):
             agent_type = kwargs.pop("type")
         # Normalize agent_type to string
         if isinstance(agent_type, str):
@@ -116,6 +114,7 @@ class AgentFactory:
         llm_client = AgentFactory.create_llm_client(provider, model, **kwargs)
 
         # Create appropriate config based on agent type
+        config: AgentConfig
         if agent_type in ["multimodal", AgentType.MULTIMODAL.value]:
             config = MultimodalAgentConfig(
                 name=name,
@@ -162,7 +161,7 @@ class AgentFactory:
         model: str | None = None,
         description: str = "",
         system_prompt: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> BaseAgent:
         """Create a simple (base) agent."""
         return AgentFactory.create_agent(
@@ -182,7 +181,7 @@ class AgentFactory:
         model: str | None = None,
         enable_vision: bool = True,
         enable_audio: bool = True,
-        **kwargs,
+        **kwargs: Any,
     ) -> MultimodalAgent:
         """Create a multimodal agent.
 
@@ -198,7 +197,7 @@ class AgentFactory:
             Multimodal agent instance
 
         """
-        return AgentFactory.create_agent(
+        agent = AgentFactory.create_agent(
             name=name,
             agent_type=AgentType.MULTIMODAL,
             provider=provider,
@@ -207,6 +206,9 @@ class AgentFactory:
             enable_audio=enable_audio,
             **kwargs,
         )
+        if not isinstance(agent, MultimodalAgent):
+            raise TypeError(f"Expected MultimodalAgent, got {type(agent).__name__}")
+        return agent
 
     @staticmethod
     def create_langchain_agent(
@@ -216,7 +218,7 @@ class AgentFactory:
         tools: list[BaseTool] | None = None,
         enable_search: bool = True,
         enable_calculator: bool = True,
-        **kwargs,
+        **kwargs: Any,
     ) -> LangChainAgent:
         """Create a LangChain agent with tools.
 
@@ -233,7 +235,7 @@ class AgentFactory:
             LangChain agent instance
 
         """
-        return AgentFactory.create_agent(
+        agent = AgentFactory.create_agent(
             name=name,
             agent_type=AgentType.LANGCHAIN,
             provider=provider,
@@ -243,6 +245,9 @@ class AgentFactory:
             enable_calculator=enable_calculator,
             **kwargs,
         )
+        if not isinstance(agent, LangChainAgent):
+            raise TypeError(f"Expected LangChainAgent, got {type(agent).__name__}")
+        return agent
 
     @staticmethod
     def create_agent_from_config(config: dict[str, Any]) -> BaseAgent:

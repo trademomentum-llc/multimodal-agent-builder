@@ -1,5 +1,6 @@
 import hashlib
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
@@ -22,10 +23,10 @@ class GuardianAgent:
         "Timestamp",
     ]
 
-    def __init__(self, ledger_path: str):
+    def __init__(self, ledger_path: str) -> None:
         self.ledger_path = Path(ledger_path)
 
-    def scan_ledger(self) -> dict:
+    def scan_ledger(self) -> dict[str, Any]:
         """Load the ledger file and check it for structural integrity."""
         if not self.ledger_path.exists():
             return {"status": "error", "msg": f"No ledger found at {self.ledger_path}"}

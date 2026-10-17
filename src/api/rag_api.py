@@ -53,7 +53,7 @@ def search_embeddings(
         Query(description="1536-dim embedding vector as comma separated list"),
     ],
     top_k: int = 5,
-):
+) -> list[dict[str, Any]]:
     agent = CodingAgent(DB_URL)
     query_vec = np.array(query, dtype=np.float32)
     results = agent.rag_select_docs(query_vec, top_k=top_k)

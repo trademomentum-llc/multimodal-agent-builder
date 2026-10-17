@@ -6,17 +6,25 @@ from typing import Any
 from langchain_classic.agents import AgentExecutor, create_react_agent
 from langchain_classic.memory import ConversationBufferMemory
 from langchain_community.tools import DuckDuckGoSearchRun
-from langchain_core.language_models import BaseLLM
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import PromptTemplate
 from langchain_core.tools import BaseTool, Tool
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
-from pydantic import Field
+from pydantic import Field, SecretStr
 
 from config.config import settings
 from src.agents.base_agent import AgentConfig, AgentResponse, BaseAgent
 from src.models.base_llm import BaseLLMClient, Message, MessageRole
 from src.utils.grounding import get_grounding_summary
+
+
+def _lc_content(msg: Message) -> str | list[str | dict[Any, Any]]:
+    """Convert a Message's content into LangChain message content."""
+    if isinstance(msg.content, str):
+        return msg.content
+    return [*msg.content]
 
 
 class LangChainAgentConfig(AgentConfig):
@@ -37,8 +45,8 @@ class LangChainAgent(BaseAgent):
         config: LangChainAgentConfig | AgentConfig,
         llm_client: BaseLLMClient | None = None,
         tools: list[BaseTool] | None = None,
-        langchain_llm: BaseLLM | None = None,
-    ):
+        langchain_llm: BaseChatModel | None = None,
+    ) -> None:
         """Initialize LangChain agent.
 
         Args:
@@ -72,7 +80,8 @@ class LangChainAgent(BaseAgent):
         self.langchain_llm = langchain_llm
 
         # Initialize LangChain components
-        self.memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+        # Kept separate from BaseAgent.memory (AgentMemory), which the base cycle uses.
+        self.lc_memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
         # Initialize tools
         self.langchain_tools = self._initialize_tools(tools)
@@ -80,7 +89,7 @@ class LangChainAgent(BaseAgent):
         # Create agent executor
         self.agent_executor = self._create_agent_executor()
 
-    def _create_langchain_llm(self, config: LangChainAgentConfig) -> BaseLLM:
+    def _create_langchain_llm(self, config: LangChainAgentConfig) -> BaseChatModel:
         """Create LangChain LLM from config.
 
         Args:
@@ -94,8 +103,8 @@ class LangChainAgent(BaseAgent):
             return ChatOpenAI(
                 model=config.model or "gpt-4",
                 temperature=config.temperature,
-                max_tokens=config.max_tokens,
-                api_key=settings.openai_api_key,
+                max_completion_tokens=config.max_tokens,
+                api_key=SecretStr(settings.openai_api_key) if settings.openai_api_key else None,
             )
         elif config.model_provider == "gemini":
             return ChatGoogleGenerativeAI(
@@ -109,8 +118,8 @@ class LangChainAgent(BaseAgent):
             return ChatOpenAI(
                 model="gpt-4",
                 temperature=config.temperature,
-                max_tokens=config.max_tokens,
-                api_key=settings.openai_api_key,
+                max_completion_tokens=config.max_tokens,
+                api_key=SecretStr(settings.openai_api_key) if settings.openai_api_key else None,
             )
 
     def _initialize_tools(self, custom_tools: list[BaseTool] | None = None) -> list[BaseTool]:
@@ -200,7 +209,7 @@ Thought: {agent_scratchpad}""",
         return AgentExecutor(
             agent=agent,
             tools=self.langchain_tools,
-            memory=self.memory,
+            memory=self.lc_memory,
             verbose=self.config.verbose,
             max_iterations=self.config.max_iterations,
             handle_parsing_errors=True,
@@ -210,7 +219,7 @@ Thought: {agent_scratchpad}""",
         self,
         input_data: str | dict[str, Any],
         context: list[Message] | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> str:
         """LangChain thinking process.
 
@@ -233,15 +242,17 @@ Thought: {agent_scratchpad}""",
         if context:
             for msg in context:
                 if msg.role == MessageRole.USER:
-                    self.memory.chat_memory.add_user_message(msg.content)
+                    self.lc_memory.chat_memory.add_user_message(
+                        HumanMessage(content=_lc_content(msg))
+                    )
                 elif msg.role == MessageRole.ASSISTANT:
-                    self.memory.chat_memory.add_ai_message(msg.content)
+                    self.lc_memory.chat_memory.add_ai_message(AIMessage(content=_lc_content(msg)))
 
         # For LangChain, the thinking is integrated into the execution
         return f"Processing: {input_str[:100]}..."
 
     async def act(
-        self, thought: str, available_actions: list[dict[str, Any]] | None = None, **kwargs
+        self, thought: str, available_actions: list[dict[str, Any]] | None = None, **kwargs: Any
     ) -> dict[str, Any]:
         """Execute action using LangChain agent.
 
@@ -270,7 +281,7 @@ Thought: {agent_scratchpad}""",
         except Exception as e:
             return {"type": "error", "input": input_str, "error": str(e)}
 
-    async def observe(self, action_result: dict[str, Any], **kwargs) -> str:
+    async def observe(self, action_result: dict[str, Any], **kwargs: Any) -> str:
         """Observe LangChain action result.
 
         Args:
@@ -284,9 +295,9 @@ Thought: {agent_scratchpad}""",
         if action_result["type"] == "error":
             return f"Error occurred: {action_result.get('error', 'Unknown error')}"
 
-        return action_result.get("output", "No output generated")
+        return str(action_result.get("output", "No output generated"))
 
-    async def chat_with_tools(self, message: str, **kwargs) -> AgentResponse:
+    async def chat_with_tools(self, message: str, **kwargs: Any) -> AgentResponse:
         """Chat interface with tool usage.
 
         Args:

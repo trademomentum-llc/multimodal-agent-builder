@@ -55,7 +55,7 @@ class CouncilAgent:
         providers: Sequence[str] | None = None,
         summarizer_provider: str = "openai",
         system_prompt: str | None = None,
-    ):
+    ) -> None:
         self.providers = list(providers) if providers else ["openai", "gemini", "anthropic"]
         self.summarizer_provider = summarizer_provider
         self.system_prompt = system_prompt or (
@@ -129,9 +129,7 @@ class CouncilAgent:
         messages.append(_to_message("user", prompt))
         return messages
 
-    async def _summarize(
-        self, members: list[CouncilMemberResult], prompt: str
-    ) -> tuple[str, str]:
+    async def _summarize(self, members: list[CouncilMemberResult], prompt: str) -> tuple[str, str]:
         """Produce a unified summary and recommended action."""
         # If every model failed, bail out early with a clear message.
         successful = [m for m in members if not m.error and m.reasoning]

@@ -7,7 +7,7 @@ class DatasetManager:
     Handles resolved file paths, loading, and (optionally) application-specific adaptors.
     """
 
-    def __init__(self, dataset_root: str = "train-test-validate"):
+    def __init__(self, dataset_root: str = "train-test-validate") -> None:
         self.root = Path(dataset_root)
 
     def get_split_path(self, split: str) -> Path:
@@ -18,7 +18,7 @@ class DatasetManager:
         }
         return split_map[split]
 
-    def list_files(self, split: str):
+    def list_files(self, split: str) -> list[Path]:
         d = self.get_split_path(split)
         return list(d.glob("*"))
 

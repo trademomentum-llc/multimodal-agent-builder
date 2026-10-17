@@ -13,14 +13,14 @@ import tiktoken
 from PIL import Image
 
 from config.config import settings
-from src.models.base_llm import BaseLLMClient, LLMResponse, Message, MessageRole
+from src.models.base_llm import BaseLLMClient, LLMResponse, Message, MessageRole, ModelCapabilities
 
 
 class OpenAIClient(BaseLLMClient):
     """OpenAI GPT-4 client implementation."""
 
     # Model capabilities mapping
-    MODEL_CAPABILITIES = {
+    MODEL_CAPABILITIES: dict[str, ModelCapabilities] = {
         "gpt-4-turbo-preview": {
             "vision": True,
             "functions": True,
@@ -65,8 +65,8 @@ class OpenAIClient(BaseLLMClient):
         max_tokens: int | None = None,
         temperature: float | None = None,
         organization: str | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """Initialize OpenAI client.
 
         Args:
@@ -102,7 +102,7 @@ class OpenAIClient(BaseLLMClient):
         messages: list[Message],
         functions: list[dict[str, Any]] | None = None,
         function_call: str | dict[str, Any] | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> LLMResponse:
         """Generate a response from OpenAI GPT-4.
 
@@ -156,7 +156,9 @@ class OpenAIClient(BaseLLMClient):
             raw_response=response,
         )
 
-    async def generate_stream(self, messages: list[Message], **kwargs) -> AsyncGenerator[str, None]:
+    async def generate_stream(
+        self, messages: list[Message], **kwargs: Any
+    ) -> AsyncGenerator[str, None]:
         """Generate a streaming response from OpenAI.
 
         Args:
@@ -184,7 +186,7 @@ class OpenAIClient(BaseLLMClient):
                 yield chunk.choices[0].delta.content
 
     async def generate_with_image(
-        self, prompt: str, image: str | bytes | Image.Image | np.ndarray, **kwargs
+        self, prompt: str, image: str | bytes | Image.Image | np.ndarray, **kwargs: Any
     ) -> LLMResponse:
         """Generate a response based on text and image input.
 
@@ -220,7 +222,7 @@ class OpenAIClient(BaseLLMClient):
         return await self.generate(messages, **kwargs)
 
     async def generate_embeddings(
-        self, text: str | list[str], model: str = "text-embedding-3-small", **kwargs
+        self, text: str | list[str], model: str = "text-embedding-3-small", **kwargs: Any
     ) -> list[float] | list[list[float]]:
         """Generate embeddings for text.
 
@@ -234,7 +236,7 @@ class OpenAIClient(BaseLLMClient):
 
         """
         is_single = isinstance(text, str)
-        input_text = [text] if is_single else text
+        input_text: list[str] = [text] if isinstance(text, str) else text
 
         response = await self.client.embeddings.create(model=model, input=input_text, **kwargs)
 
@@ -289,17 +291,17 @@ class OpenAIClient(BaseLLMClient):
     @property
     def supports_functions(self) -> bool:
         """Check if model supports function calling."""
-        return self.MODEL_CAPABILITIES.get(self.model, {"functions": False})["functions"]
+        return self.MODEL_CAPABILITIES.get(self.model, {}).get("functions", False)
 
     @property
     def supports_vision(self) -> bool:
         """Check if model supports vision inputs."""
-        return self.MODEL_CAPABILITIES.get(self.model, {"vision": False})["vision"]
+        return self.MODEL_CAPABILITIES.get(self.model, {}).get("vision", False)
 
     @property
     def supports_streaming(self) -> bool:
         """Check if model supports streaming."""
-        return self.MODEL_CAPABILITIES.get(self.model, {"streaming": True})["streaming"]
+        return self.MODEL_CAPABILITIES.get(self.model, {}).get("streaming", True)
 
     @property
     def max_context_length(self) -> int:

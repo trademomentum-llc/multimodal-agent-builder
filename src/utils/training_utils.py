@@ -4,12 +4,21 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 import pandas as pd
 
 from src.utils.logging_utils import logger, setup_logger
 from src.utils.narrative_utils import NarrativeEnhancer
+
+
+class TrainingMetrics(TypedDict):
+    """Counters accumulated across a closure-aware training run."""
+
+    iterations: int
+    closures: int
+    patterns_found: list[str]
+    hypotheses_tested: list[str]
 
 
 @dataclass
@@ -22,9 +31,9 @@ class RecursiveLoop:
     pattern: str
     structure: str
     why_closed: str
-    timestamp: str = None
+    timestamp: str | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.timestamp:
             self.timestamp = datetime.utcnow().isoformat()
 
@@ -32,7 +41,7 @@ class RecursiveLoop:
 class RecursiveLoopClosureLedger:
     """Manages recursive loop closure tracking inspired by living_system.ts."""
 
-    def __init__(self, ledger_file: str | None = None):
+    def __init__(self, ledger_file: str | None = None) -> None:
         """Initialize the ledger.
 
         Args:
@@ -109,14 +118,14 @@ class RecursiveLoopClosureLedger:
 
         return pd.DataFrame(data)
 
-    def save_ledger(self):
+    def save_ledger(self) -> None:
         """Save ledger to file."""
         if self.ledger_file:
             df = self.get_ledger_df()
             df.to_csv(self.ledger_file, index=False)
             logger.info(f"Saved ledger to {self.ledger_file}")
 
-    def load_ledger(self):
+    def load_ledger(self) -> None:
         """Load ledger from file."""
         if self.ledger_file and Path(self.ledger_file).exists():
             df = pd.read_csv(self.ledger_file)
@@ -140,9 +149,9 @@ class RecursiveLoopClosureLedger:
 class ClosureRecognitionAgent:
     """Agent for recognizing loop closure patterns (Python version of TypeScript class)."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the closure recognition agent."""
-        self.closed_loops = []
+        self.closed_loops: list[dict[str, str]] = []
         self.logger = setup_logger("closure_agent")
 
     def detect_closure(self, hypothesis: str, pattern: str, structure: str) -> bool:
@@ -192,7 +201,7 @@ class AdaptiveTrainingManager:
         train_path: str = "train-test-validate/ML-Training",
         test_path: str = "train-test-validate/ML-Testing",
         val_path: str = "train-test-validate/ML-Validation",
-    ):
+    ) -> None:
         """Initialize training manager.
 
         Args:
@@ -212,14 +221,14 @@ class AdaptiveTrainingManager:
         self.narrative_enhancer = NarrativeEnhancer()
 
         # Track training metrics
-        self.training_metrics = {
+        self.training_metrics: TrainingMetrics = {
             "iterations": 0,
             "closures": 0,
             "patterns_found": [],
             "hypotheses_tested": [],
         }
 
-    def load_training_data(self, dataset_type: str = "open_images") -> list[dict]:
+    def load_training_data(self, dataset_type: str = "open_images") -> list[dict[str, Any]]:
         """Load training data from files.
 
         Args:
@@ -252,7 +261,7 @@ class AdaptiveTrainingManager:
         return training_data
 
     def create_training_loop(
-        self, model_name: str, training_data: list[dict], epochs: int = 3
+        self, model_name: str, training_data: list[dict[str, Any]], epochs: int = 3
     ) -> dict[str, Any]:
         """Create an adaptive training loop with closure detection.
 
@@ -265,7 +274,12 @@ class AdaptiveTrainingManager:
             Training results
 
         """
-        results = {"model": model_name, "epochs": epochs, "loops_closed": [], "final_metrics": {}}
+        results: dict[str, Any] = {
+            "model": model_name,
+            "epochs": epochs,
+            "loops_closed": [],
+            "final_metrics": {},
+        }
 
         for epoch in range(epochs):
             logger.info(f"Starting epoch {epoch + 1}/{epochs}")
@@ -298,7 +312,7 @@ class AdaptiveTrainingManager:
         results["final_metrics"] = self.training_metrics
         return results
 
-    def _simulate_training(self, training_data: list[dict], epoch: int) -> list[str]:
+    def _simulate_training(self, training_data: list[dict[str, Any]], epoch: int) -> list[str]:
         """Simulate training process.
 
         Args:
@@ -322,7 +336,7 @@ class AdaptiveTrainingManager:
         return patterns
 
     def validate_with_closure(
-        self, model_name: str, validation_data: list[dict] | None = None
+        self, model_name: str, validation_data: list[dict[str, Any]] | None = None
     ) -> dict[str, Any]:
         """Validate model with recursive closure checking.
 

@@ -21,7 +21,7 @@ class ColoredFormatter(logging.Formatter):
     }
     RESET = "\033[0m"
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         log_color = self.COLORS.get(record.levelname, self.RESET)
         record.levelname = f"{log_color}{record.levelname}{self.RESET}"
         return super().format(record)
@@ -30,7 +30,7 @@ class ColoredFormatter(logging.Formatter):
 class JSONFormatter(logging.Formatter):
     """JSON formatter for structured logging."""
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         log_data = {
             "timestamp": datetime.utcnow().isoformat(),
             "level": record.levelname,
@@ -108,6 +108,7 @@ def setup_logger(
     console_handler.setLevel(getattr(logging, level.upper()))
 
     # Choose formatter
+    formatter: logging.Formatter
     if format_type == "json":
         formatter = JSONFormatter()
     else:
@@ -151,7 +152,7 @@ def log_api_request(
     endpoint: str,
     data: dict[str, Any] | None = None,
     headers: dict[str, str] | None = None,
-):
+) -> None:
     """Log an API request.
 
     Args:
@@ -182,7 +183,7 @@ def log_api_response(
     status_code: int,
     response_data: Any | None = None,
     error: str | None = None,
-):
+) -> None:
     """Log an API response.
 
     Args:
@@ -207,7 +208,7 @@ def log_agent_action(
     input_data: Any,
     output_data: Any,
     duration_ms: float | None = None,
-):
+) -> None:
     """Log an agent action.
 
     Args:
@@ -239,7 +240,7 @@ def log_model_usage(
     completion_tokens: int,
     total_tokens: int,
     cost: float | None = None,
-):
+) -> None:
     """Log model token usage.
 
     Args:
@@ -268,18 +269,18 @@ def log_model_usage(
 class ErrorTracker:
     """Track and analyze errors."""
 
-    def __init__(self, max_errors: int = 100):
+    def __init__(self, max_errors: int = 100) -> None:
         """Initialize error tracker.
 
         Args:
             max_errors: Maximum number of errors to track
 
         """
-        self.errors = []
+        self.errors: list[dict[str, Any]] = []
         self.max_errors = max_errors
-        self.error_counts = {}
+        self.error_counts: dict[str, int] = {}
 
-    def track_error(self, error: Exception, context: dict[str, Any] | None = None):
+    def track_error(self, error: Exception, context: dict[str, Any] | None = None) -> None:
         """Track an error.
 
         Args:
@@ -317,7 +318,7 @@ class ErrorTracker:
             "recent_errors": self.errors[-10:] if self.errors else [],
         }
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear all tracked errors."""
         self.errors = []
         self.error_counts = {}
@@ -330,7 +331,7 @@ error_tracker = ErrorTracker()
 
 def handle_exception(
     exc: Exception, context: dict[str, Any] | None = None, reraise: bool = True
-):
+) -> None:
     """Handle an exception with logging and tracking.
 
     Args:

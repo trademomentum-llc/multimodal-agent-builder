@@ -73,9 +73,7 @@ class CouncilDecisionRequest(BaseModel):
         description="approve|deny|edit|revise",
         pattern="^(approve|deny|edit|revise)$",
     )
-    edited_prompt: str | None = Field(
-        default=None, description="New prompt if editing the request"
-    )
+    edited_prompt: str | None = Field(default=None, description="New prompt if editing the request")
     comments: str | None = Field(default=None, description="Reviewer notes")
 
 

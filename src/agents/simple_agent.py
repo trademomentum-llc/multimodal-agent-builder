@@ -13,7 +13,7 @@ class SimpleAgent(BaseAgent):
         self,
         input_data: str | dict[str, Any],
         context: list[Message] | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> str:
         """Think in the simplest way: just process the input.
 
@@ -36,7 +36,7 @@ class SimpleAgent(BaseAgent):
         return f"Processing request: {input_str}"
 
     async def act(
-        self, thought: str, available_actions: list[dict[str, Any]] | None = None, **kwargs
+        self, thought: str, available_actions: list[dict[str, Any]] | None = None, **kwargs: Any
     ) -> dict[str, Any]:
         """Act by generating a response.
 
@@ -69,7 +69,7 @@ class SimpleAgent(BaseAgent):
 
         return {"type": "response", "content": response.content, "usage": response.usage}
 
-    async def observe(self, action_result: dict[str, Any], **kwargs) -> str:
+    async def observe(self, action_result: dict[str, Any], **kwargs: Any) -> str:
         """Observe by returning the response.
 
         Args:
@@ -80,4 +80,4 @@ class SimpleAgent(BaseAgent):
             Final response
 
         """
-        return action_result.get("content", "No response generated")
+        return str(action_result.get("content", "No response generated"))

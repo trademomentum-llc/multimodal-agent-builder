@@ -109,7 +109,7 @@ class BaseAgent(ABC):
         config: AgentConfig,
         llm_client: BaseLLMClient,
         tools: list[Any] | None = None,
-    ):
+    ) -> None:
         """Initialize the agent.
 
         Args:
@@ -154,7 +154,7 @@ class BaseAgent(ABC):
         self,
         input_data: str | dict[str, Any],
         context: list[Message] | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> str:
         """Agent's thinking/reasoning process.
 
@@ -171,7 +171,7 @@ class BaseAgent(ABC):
 
     @abstractmethod
     async def act(
-        self, thought: str, available_actions: list[dict[str, Any]] | None = None, **kwargs
+        self, thought: str, available_actions: list[dict[str, Any]] | None = None, **kwargs: Any
     ) -> dict[str, Any]:
         """Agent's action selection and execution.
 
@@ -187,7 +187,7 @@ class BaseAgent(ABC):
         pass
 
     @abstractmethod
-    async def observe(self, action_result: dict[str, Any], **kwargs) -> str:
+    async def observe(self, action_result: dict[str, Any], **kwargs: Any) -> str:
         """Agent observes the result of its action.
 
         Args:
@@ -200,7 +200,7 @@ class BaseAgent(ABC):
         """
         pass
 
-    async def run(self, input_data: str | dict[str, Any], **kwargs) -> AgentResponse:
+    async def run(self, input_data: str | dict[str, Any], **kwargs: Any) -> AgentResponse:
         """Run the agent's complete cycle.
 
         Args:
@@ -311,7 +311,7 @@ class BaseAgent(ABC):
             topic=self.config.name or self.__class__.__name__,
         )
 
-    async def _stabilized_generate(self, *args, **kwargs) -> LLMResponse:
+    async def _stabilized_generate(self, *args: Any, **kwargs: Any) -> LLMResponse:
         """Call LLM with simple retry/backoff to self-stabilize transient failures."""
         last_exc: Exception | None = None
         for attempt in range(self._stabilizer_max_retries + 1):
@@ -327,7 +327,7 @@ class BaseAgent(ABC):
                 await _asyncio.sleep(self._stabilizer_backoff_sec * (2**attempt))
         raise last_exc  # type: ignore[misc]
 
-    async def chat(self, message: str, **kwargs) -> AgentResponse:
+    async def chat(self, message: str, **kwargs: Any) -> AgentResponse:
         """Chat with the agent through a simple interface.
 
         Args:

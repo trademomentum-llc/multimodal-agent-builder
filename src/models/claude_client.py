@@ -10,14 +10,14 @@ from anthropic import AsyncAnthropic
 from PIL import Image
 
 from config.config import settings
-from src.models.base_llm import BaseLLMClient, LLMResponse, Message, MessageRole
+from src.models.base_llm import BaseLLMClient, LLMResponse, Message, MessageRole, ModelCapabilities
 
 
 class ClaudeClient(BaseLLMClient):
     """Anthropic Claude client implementation."""
 
     # Model capabilities mapping
-    MODEL_CAPABILITIES = {
+    MODEL_CAPABILITIES: dict[str, ModelCapabilities] = {
         "claude-3-opus-20240229": {
             "vision": True,
             "functions": True,
@@ -68,8 +68,8 @@ class ClaudeClient(BaseLLMClient):
         model: str | None = None,
         max_tokens: int | None = None,
         temperature: float | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """Initialize Claude client.
 
         Args:
@@ -97,7 +97,7 @@ class ClaudeClient(BaseLLMClient):
         messages: list[Message],
         system_prompt: str | None = None,
         tools: list[dict[str, Any]] | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> LLMResponse:
         """Generate a response from Claude.
 
@@ -178,7 +178,7 @@ class ClaudeClient(BaseLLMClient):
         )
 
     async def generate_stream(
-        self, messages: list[Message], system_prompt: str | None = None, **kwargs
+        self, messages: list[Message], system_prompt: str | None = None, **kwargs: Any
     ) -> AsyncGenerator[str, None]:
         """Generate a streaming response from Claude.
 
@@ -208,7 +208,7 @@ class ClaudeClient(BaseLLMClient):
                 yield text
 
     async def generate_with_image(
-        self, prompt: str, image: str | bytes | Image.Image | np.ndarray, **kwargs
+        self, prompt: str, image: str | bytes | Image.Image | np.ndarray, **kwargs: Any
     ) -> LLMResponse:
         """Generate a response based on text and image input.
 
@@ -248,7 +248,7 @@ class ClaudeClient(BaseLLMClient):
         return await self.generate(messages, **kwargs)
 
     async def generate_embeddings(
-        self, text: str | list[str], **kwargs
+        self, text: str | list[str], **kwargs: Any
     ) -> list[float] | list[list[float]]:
         """Generate embeddings for text.
 
@@ -303,6 +303,7 @@ class ClaudeClient(BaseLLMClient):
             role = "user" if msg.role == MessageRole.USER else "assistant"
 
             # Handle content
+            content: str | list[dict[str, Any]]
             if isinstance(msg.content, str):
                 content = msg.content
             elif isinstance(msg.content, list):
@@ -328,6 +329,7 @@ class ClaudeClient(BaseLLMClient):
 
         """
         # Convert to PIL Image first
+        pil_image: Image.Image
         if isinstance(image, str):
             pil_image = Image.open(image)
         elif isinstance(image, bytes):
@@ -360,7 +362,7 @@ class ClaudeClient(BaseLLMClient):
 
         return base64_string, media_type
 
-    def _extract_content(self, response) -> str:
+    def _extract_content(self, response: Any) -> str:
         """Extract text content from Claude response.
 
         Args:
@@ -388,17 +390,17 @@ class ClaudeClient(BaseLLMClient):
     @property
     def supports_functions(self) -> bool:
         """Check if model supports function calling."""
-        return self.MODEL_CAPABILITIES.get(self.model, {"functions": False})["functions"]
+        return self.MODEL_CAPABILITIES.get(self.model, {}).get("functions", False)
 
     @property
     def supports_vision(self) -> bool:
         """Check if model supports vision inputs."""
-        return self.MODEL_CAPABILITIES.get(self.model, {"vision": False})["vision"]
+        return self.MODEL_CAPABILITIES.get(self.model, {}).get("vision", False)
 
     @property
     def supports_streaming(self) -> bool:
         """Check if model supports streaming."""
-        return self.MODEL_CAPABILITIES.get(self.model, {"streaming": True})["streaming"]
+        return self.MODEL_CAPABILITIES.get(self.model, {}).get("streaming", True)
 
     @property
     def max_context_length(self) -> int:

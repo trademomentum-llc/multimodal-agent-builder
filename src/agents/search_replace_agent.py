@@ -1,5 +1,6 @@
 import os
 import re
+from collections.abc import Iterator
 from pathlib import Path
 from re import Pattern
 from typing import Any
@@ -11,7 +12,7 @@ class SearchReplaceAgent:
     Supports dry-run (no writes), directory filtering, and summary reporting.
     """
 
-    def __init__(self, repo_root: str = "."):
+    def __init__(self, repo_root: str = ".") -> None:
         self.repo_root = Path(repo_root)
 
     def search(
@@ -63,7 +64,9 @@ class SearchReplaceAgent:
                 continue
         return changes
 
-    def _iter_files(self, file_extensions: list[str] | None, ignore_dirs: list[str] | None):
+    def _iter_files(
+        self, file_extensions: list[str] | None, ignore_dirs: list[str] | None
+    ) -> Iterator[Path]:
         for root, dirs, files in os.walk(self.repo_root):
             # Filter out ignored directories
             if ignore_dirs:

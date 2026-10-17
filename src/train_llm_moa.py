@@ -1,3 +1,5 @@
+from typing import Any
+
 from datasets import load_dataset
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, TrainingArguments
 
@@ -5,14 +7,16 @@ from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, Training
 dataset = load_dataset("meddialog")
 tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-large")
 
-def moa_annotate(example):
+
+def moa_annotate(example: dict[str, Any]) -> dict[str, Any]:
     # Simulate MOA annotation with dummy logic or ml model
     example["moa"] = {
-        "motivation": "consultation", # Placeholder for real logic
-        "opportunity": "doctor available", # Placeholder
-        "ability": "patient able to answer", # Placeholder
+        "motivation": "consultation",  # Placeholder for real logic
+        "opportunity": "doctor available",  # Placeholder
+        "ability": "patient able to answer",  # Placeholder
     }
     return example
+
 
 dataset = dataset.map(moa_annotate)
 model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-large")
@@ -22,7 +26,6 @@ trainer = Trainer(
     model=model,
     args=training_args,
     train_dataset=dataset["train"],
-    eval_dataset=dataset["validation"]
+    eval_dataset=dataset["validation"],
 )
 trainer.train()
-

@@ -2,6 +2,7 @@
 
 import io
 from pathlib import Path
+from typing import Any
 
 try:
     from pydub import AudioSegment
@@ -20,7 +21,7 @@ class AudioProcessor:
     SUPPORTED_FORMATS = {".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac", ".wma"}
     DEFAULT_SAMPLE_RATE = 16000  # 16kHz for speech
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize audio processor."""
         if not PYDUB_AVAILABLE:
             raise ImportError(
@@ -145,7 +146,7 @@ class AudioProcessor:
         min_silence_len: int = 500,
         silence_thresh: int = -40,
         keep_silence: int = 200,
-    ) -> list:
+    ) -> list[AudioSegment]:
         """Split audio on silence.
 
         Args:
@@ -171,7 +172,7 @@ class AudioProcessor:
         return chunks
 
     @staticmethod
-    def get_audio_info(audio: AudioSegment) -> dict:
+    def get_audio_info(audio: AudioSegment) -> dict[str, Any]:
         """Get audio metadata.
 
         Args:
@@ -231,7 +232,7 @@ class AudioProcessor:
     @staticmethod
     def chunk_audio(
         audio: AudioSegment, chunk_length_ms: int = 30000, overlap_ms: int = 1000
-    ) -> list:
+    ) -> list[AudioSegment]:
         """Split audio into overlapping chunks.
 
         Args:

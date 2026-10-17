@@ -9,10 +9,12 @@ class DataManagementAgent:
     Can invoke the reassembly shell script, check outputs, and track split metadata.
     """
 
-    def __init__(self, dataset_manager: DatasetManager):
+    def __init__(self, dataset_manager: DatasetManager) -> None:
         self.dataset_manager = dataset_manager
 
-    def reassemble_split(self, kind: str = "all", dry_run: bool = False, verbose: bool = True):
+    def reassemble_split(
+        self, kind: str = "all", dry_run: bool = False, verbose: bool = True
+    ) -> subprocess.CompletedProcess[str]:
         cmd = ["bash", "scripts/reassemble_files.sh", "--kind", kind]
         if dry_run:
             cmd.append("--dry-run")

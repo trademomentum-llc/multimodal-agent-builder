@@ -1,6 +1,7 @@
 """CodingAgent for chunk indexing, embedding generation, and RAG integration."""
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -25,16 +26,16 @@ class DocumentRecord:
     source: str
     label: str
     parent_chunk_id: int
-    extra: dict | None = None
+    extra: dict[str, Any] | None = None
 
 
 class CodingAgent:
-    def __init__(self, db_url: str):
+    def __init__(self, db_url: str) -> None:
         self.db_url = db_url
         self.conn = psycopg2.connect(self.db_url)
         self.conn.autocommit = True
 
-    def index_chunks_and_metadata(self, manifest_paths: list[str]):
+    def index_chunks_and_metadata(self, manifest_paths: list[str]) -> None:
         cur = self.conn.cursor()
         for manifest_file in manifest_paths:
             with open(manifest_file) as f:
@@ -69,8 +70,12 @@ class CodingAgent:
         cur.close()
 
     def generate_and_insert_embeddings(
-        self, doc_texts: list[str], doc_ids: list[str], chunk_indices: list[int], embedding_fn
-    ):
+        self,
+        doc_texts: list[str],
+        doc_ids: list[str],
+        chunk_indices: list[int],
+        embedding_fn: Callable[[str], np.ndarray],
+    ) -> None:
         """Embed each document and insert it; embedding_fn(doc_text) returns ndarray (1536,)."""
         cur = self.conn.cursor()
         for doc_id, chunk_idx, text in zip(doc_ids, chunk_indices, doc_texts, strict=True):
@@ -99,7 +104,7 @@ class CodingAgent:
         cur.close()
         return results
 
-    def close(self):
+    def close(self) -> None:
         self.conn.close()
 
 

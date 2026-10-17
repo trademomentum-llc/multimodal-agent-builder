@@ -2,7 +2,9 @@
 
 import base64
 import io
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps
@@ -17,7 +19,7 @@ class ImageProcessor:
     SUPPORTED_FORMATS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".tiff"}
     MAX_SIZE = (1920, 1080)
 
-    def __init__(self, enable_narratives: bool = False):
+    def __init__(self, enable_narratives: bool = False) -> None:
         """Initialize image processor.
 
         Args:
@@ -133,7 +135,7 @@ class ImageProcessor:
 
     def analyze_with_narratives(
         self, image: str | Image.Image, image_id: str | None = None
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Analyze image with narrative enhancement if available.
 
         Args:
@@ -153,7 +155,7 @@ class ImageProcessor:
             img = image
 
         # Basic analysis
-        analysis = {
+        analysis: dict[str, Any] = {
             "size": img.size,
             "mode": img.mode,
             "format": img.format,
@@ -203,8 +205,7 @@ class ImageProcessor:
             result = ImageOps.flip(result)
 
         if brightness is not None:
-            enhancer = ImageEnhance.Brightness(result)
-            result = enhancer.enhance(brightness)
+            result = ImageEnhance.Brightness(result).enhance(brightness)
 
         if contrast is not None:
             enhancer = ImageEnhance.Contrast(result)
@@ -219,9 +220,9 @@ class ImageProcessor:
         return result
 
     @staticmethod
-    def extract_metadata(image: Image.Image) -> dict:
+    def extract_metadata(image: Image.Image) -> dict[str, Any]:
         """Extract comprehensive image metadata."""
-        metadata = {
+        metadata: dict[str, Any] = {
             "format": image.format,
             "mode": image.mode,
             "size": image.size,
@@ -258,7 +259,9 @@ class ImageProcessor:
 
         return image
 
-    def batch_process(self, images: list, operation: callable, **kwargs) -> list:
+    def batch_process(
+        self, images: list[Any], operation: Callable[..., Any], **kwargs: Any
+    ) -> list[Any]:
         """Apply an operation to multiple images."""
         results = []
         for idx, img_input in enumerate(images):

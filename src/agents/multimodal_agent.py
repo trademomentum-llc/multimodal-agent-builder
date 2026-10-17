@@ -39,7 +39,7 @@ class MultimodalAgent(BaseAgent):
         config: MultimodalAgentConfig | AgentConfig,
         llm_client: BaseLLMClient,
         tools: list[Any] | None = None,
-    ):
+    ) -> None:
         """Initialize multimodal agent.
 
         Args:
@@ -66,7 +66,7 @@ class MultimodalAgent(BaseAgent):
         self,
         input_data: str | dict[str, Any] | MultimodalInput,
         context: list[Message] | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> str:
         """Multimodal thinking process.
 
@@ -104,7 +104,7 @@ class MultimodalAgent(BaseAgent):
         # Add the thinking prompt
         if multimodal_input.image and self.vision_enabled:
             # Create multimodal message
-            content = [{"type": "text", "text": thinking_prompt}]
+            content: list[dict[str, Any]] = [{"type": "text", "text": thinking_prompt}]
 
             # Add image
             if isinstance(multimodal_input.image, str):
@@ -140,7 +140,7 @@ class MultimodalAgent(BaseAgent):
         return response.content if hasattr(response, "content") else str(response)
 
     async def act(
-        self, thought: str, available_actions: list[dict[str, Any]] | None = None, **kwargs
+        self, thought: str, available_actions: list[dict[str, Any]] | None = None, **kwargs: Any
     ) -> dict[str, Any]:
         """Select and execute action based on thought.
 
@@ -168,7 +168,7 @@ class MultimodalAgent(BaseAgent):
         # Default action: generate response
         return {"type": "response_generation", "thought": thought, "action": "generate_response"}
 
-    async def observe(self, action_result: dict[str, Any], **kwargs) -> str:
+    async def observe(self, action_result: dict[str, Any], **kwargs: Any) -> str:
         """Observe and interpret action result.
 
         Args:
@@ -205,13 +205,13 @@ class MultimodalAgent(BaseAgent):
             return response.content
 
         # For response generation, return the thought as the observation
-        return action_result.get("thought", "")
+        return str(action_result.get("thought", ""))
 
     async def process_image(
         self,
         image: str | bytes | Image.Image | np.ndarray,
         prompt: str = "What's in this image?",
-        **kwargs,
+        **kwargs: Any,
     ) -> AgentResponse:
         """Process an image with a prompt.
 
@@ -279,7 +279,7 @@ class MultimodalAgent(BaseAgent):
             )
 
     async def process_audio(
-        self, audio: str | bytes, task: str = "transcribe", **kwargs
+        self, audio: str | bytes, task: str = "transcribe", **kwargs: Any
     ) -> AgentResponse:
         """Process audio input.
 
@@ -304,7 +304,7 @@ class MultimodalAgent(BaseAgent):
             state="completed",
         )
 
-    async def process_multimodal(self, inputs: MultimodalInput, **kwargs) -> AgentResponse:
+    async def process_multimodal(self, inputs: MultimodalInput, **kwargs: Any) -> AgentResponse:
         """Process multiple modalities simultaneously.
 
         Args:
@@ -317,7 +317,7 @@ class MultimodalAgent(BaseAgent):
         """
         try:
             # Run the full think-act-observe cycle with multimodal input
-            response = await self.run(inputs, **kwargs)
+            response = await self.run(inputs.model_dump(), **kwargs)
             response.metadata["modality"] = "multimodal"
             response.metadata["modalities_used"] = []
 
