@@ -6,7 +6,7 @@ import time
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import (
     FastAPI,
@@ -22,6 +22,14 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from config.config import settings
+from src.agents.agent_factory import AgentFactory
+from src.agents.base_agent import AgentResponse, BaseAgent
+from src.agents.multimodal_agent import MultimodalInput
+from src.api.council_api import router as council_router
+from src.api.evaluations import router as evaluations_router
+from src.api.rag_api import router as rag_api_router
+from src.api.training_endpoints import router as training_router
+from src.utils.auth_utils import verify_api_key_token
 
 _OTEL_AVAILABLE = True
 try:
@@ -36,14 +44,6 @@ try:
     from opentelemetry.sdk.trace.export import BatchSpanProcessor  # type: ignore
 except Exception:  # pragma: no cover
     _OTEL_AVAILABLE = False
-from src.agents.agent_factory import AgentFactory
-from src.agents.base_agent import AgentResponse, BaseAgent
-from src.agents.multimodal_agent import MultimodalInput
-from src.api.council_api import router as council_router
-from src.api.evaluations import router as evaluations_router
-from src.api.rag_api import router as rag_api_router
-from src.api.training_endpoints import router as training_router
-from src.utils.auth_utils import verify_api_key_token
 
 # Global agent storage (in production, use a database)
 agent_store: dict[str, BaseAgent] = {}
@@ -116,6 +116,7 @@ app = FastAPI(
     debug=settings.app_debug,
 )
 
+
 # OpenTelemetry (optional; no-op if endpoint not configured)
 def _init_otel(app_: FastAPI) -> None:
     if not _OTEL_AVAILABLE:
@@ -127,10 +128,12 @@ def _init_otel(app_: FastAPI) -> None:
     if not endpoint:
         return
     try:
-        resource = Resource.create({
-            "service.name": settings.app_name,
-            "service.version": settings.app_version,
-        })
+        resource = Resource.create(
+            {
+                "service.name": settings.app_name,
+                "service.version": settings.app_version,
+            }
+        )
         provider = TracerProvider(resource=resource)
         span_exporter = OTLPSpanExporter(endpoint=endpoint)
         span_processor = BatchSpanProcessor(span_exporter)
@@ -143,6 +146,7 @@ def _init_otel(app_: FastAPI) -> None:
     except Exception:
         # Never block app startup on telemetry errors
         pass
+
 
 _init_otel(app)
 
@@ -242,6 +246,7 @@ async def api_key_middleware(request: Request, call_next):
 
     return await call_next(request)
 
+
 # Add CORS middleware (tightened via settings)
 cors_origins = settings.allowed_origins
 app.add_middleware(
@@ -283,9 +288,7 @@ class ChatRequest(BaseModel):
     """Request model for chat interaction."""
 
     message: str = Field(description="User message")
-    context: list[dict[str, str]] | None = Field(
-        default=None, description="Conversation context"
-    )
+    context: list[dict[str, str]] | None = Field(default=None, description="Conversation context")
     stream: bool = Field(default=False, description="Enable streaming response")
 
 
@@ -440,7 +443,7 @@ async def create_agent(request: CreateAgentRequest):
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to create agent: {str(e)}"
-        )
+        ) from e
 
 
 @app.get("/agents", response_model=list[AgentInfo], tags=["Agents"])
@@ -448,7 +451,7 @@ async def list_agents():
     """List all agents."""
     agents_info = []
 
-    for agent_id, agent in agent_store.items():
+    for agent in agent_store.values():
         capabilities = {}
         if hasattr(agent, "get_capabilities"):
             capabilities = agent.get_capabilities()
@@ -549,7 +552,7 @@ async def chat_with_agent(agent_id: str, request: ChatRequest):
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Chat failed: {str(e)}"
-        )
+        ) from e
 
 
 @app.post("/agents/{agent_id}/invoke", response_model=AgentResponse, tags=["Agent Interaction"])
@@ -569,13 +572,13 @@ async def invoke_agent(agent_id: str, request: InvokeRequest):
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Invocation failed: {str(e)}"
-        )
+        ) from e
 
 
 @app.post("/agents/{agent_id}/process-image", response_model=AgentResponse, tags=["Multimodal"])
 async def process_image(
     agent_id: str,
-    image: UploadFile = File(...),
+    image: Annotated[UploadFile, File()],
     prompt: str = Form(default="What's in this image?"),
 ):
     """Process an image with the agent."""
@@ -596,14 +599,25 @@ async def process_image(
     try:
         # Validate content type and extension
         if image.content_type:
-            if not any(image.content_type.endswith(ext.strip()) for ext in settings.allowed_image_types.split(",")):
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported image content type")
-        if image.filename and not any(image.filename.lower().endswith(ext) for ext in settings.allowed_image_extensions):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported image file extension")
+            if not any(
+                image.content_type.endswith(ext.strip())
+                for ext in settings.allowed_image_types.split(",")
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported image content type"
+                )
+        if image.filename and not any(
+            image.filename.lower().endswith(ext) for ext in settings.allowed_image_extensions
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported image file extension"
+            )
         # Read image data
         image_data = await image.read()
         if len(image_data) > settings.max_file_size_bytes:
-            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Image too large")
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Image too large"
+            )
 
         # Process image
         response = await agent.process_image(image=image_data, prompt=prompt)
@@ -614,13 +628,13 @@ async def process_image(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Image processing failed: {str(e)}",
-        )
+        ) from e
 
 
 @app.post("/agents/{agent_id}/process-audio", response_model=AgentResponse, tags=["Multimodal"])
 async def process_audio(
     agent_id: str,
-    audio: UploadFile = File(...),
+    audio: Annotated[UploadFile, File()],
     task: str = Form(default="transcribe"),
 ):
     """Process audio with the agent."""
@@ -641,14 +655,25 @@ async def process_audio(
     try:
         # Validate content type and extension
         if audio.content_type:
-            if not any(audio.content_type.endswith(ext.strip()) for ext in settings.allowed_audio_types.split(",")):
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported audio content type")
-        if audio.filename and not any(audio.filename.lower().endswith(ext) for ext in settings.allowed_audio_extensions):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported audio file extension")
+            if not any(
+                audio.content_type.endswith(ext.strip())
+                for ext in settings.allowed_audio_types.split(",")
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported audio content type"
+                )
+        if audio.filename and not any(
+            audio.filename.lower().endswith(ext) for ext in settings.allowed_audio_extensions
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported audio file extension"
+            )
         # Read audio data
         audio_data = await audio.read()
         if len(audio_data) > settings.max_file_size_bytes:
-            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Audio too large")
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Audio too large"
+            )
 
         # Process audio
         response = await agent.process_audio(audio=audio_data, task=task)
@@ -659,7 +684,7 @@ async def process_audio(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Audio processing failed: {str(e)}",
-        )
+        ) from e
 
 
 @app.post(
@@ -668,8 +693,8 @@ async def process_audio(
 async def process_multimodal(
     agent_id: str,
     text: str | None = Form(None),
-    image: UploadFile | None = File(None),
-    audio: UploadFile | None = File(None),
+    image: Annotated[UploadFile | None, File()] = None,
+    audio: Annotated[UploadFile | None, File()] = None,
 ):
     """Process multimodal input with the agent."""
     if agent_id not in agent_store:
@@ -705,7 +730,7 @@ async def process_multimodal(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Multimodal processing failed: {str(e)}",
-        )
+        ) from e
 
 
 @app.post("/agents/{agent_id}/clear-memory", tags=["Agent Management"])

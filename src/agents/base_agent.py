@@ -232,7 +232,12 @@ class BaseAgent(ABC):
 
             # Optionally detect and log recursive loop closure for this cycle
             try:
-                self._maybe_log_loop_closure(input_data=input_data, thought=thought, action=action_result, observation=observation)
+                self._maybe_log_loop_closure(
+                    input_data=input_data,
+                    thought=thought,
+                    action=action_result,
+                    observation=observation,
+                )
             except Exception:
                 # Closure logging must never affect core agent execution
                 pass
@@ -284,14 +289,17 @@ class BaseAgent(ABC):
 
         # Build hypothesis/pattern/structure from the current cycle
         hypothesis = (
-            thought if isinstance(thought, str) and thought.strip() else "Agent reasoning produced a hypothesis"
+            thought
+            if isinstance(thought, str) and thought.strip()
+            else "Agent reasoning produced a hypothesis"
         )
         action_type = action.get("type", "action") if isinstance(action, dict) else "action"
         pattern = f"Action={action_type}; Provider={self.config.model_provider}"
         structure = f"{self.__class__.__name__}::think->act->observe"
 
         explanation = (
-            f"Closed loop for input of type {type(input_data).__name__} with observation length {len(str(observation))}."
+            f"Closed loop for input of type {type(input_data).__name__} "
+            f"with observation length {len(str(observation))}."
         )
 
         # Best effort detection and logging (validation happens in the ledger)
@@ -320,7 +328,7 @@ class BaseAgent(ABC):
         raise last_exc  # type: ignore[misc]
 
     async def chat(self, message: str, **kwargs) -> AgentResponse:
-        """Simple chat interface for the agent.
+        """Chat with the agent through a simple interface.
 
         Args:
             message: User message
@@ -420,5 +428,5 @@ class BaseAgent(ABC):
         }
 
     def __repr__(self) -> str:
-        """String representation of the agent."""
+        """Return a string representation of the agent."""
         return f"{self.__class__.__name__}(name='{self.config.name}', id='{self.id}')"

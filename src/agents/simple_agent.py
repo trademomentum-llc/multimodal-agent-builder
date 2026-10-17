@@ -15,7 +15,7 @@ class SimpleAgent(BaseAgent):
         context: list[Message] | None = None,
         **kwargs,
     ) -> str:
-        """Simple thinking process - just process the input.
+        """Think in the simplest way: just process the input.
 
         Args:
             input_data: Input to process
@@ -38,7 +38,7 @@ class SimpleAgent(BaseAgent):
     async def act(
         self, thought: str, available_actions: list[dict[str, Any]] | None = None, **kwargs
     ) -> dict[str, Any]:
-        """Simple action - generate response.
+        """Act by generating a response.
 
         Args:
             thought: The agent's thought process
@@ -70,7 +70,7 @@ class SimpleAgent(BaseAgent):
         return {"type": "response", "content": response.content, "usage": response.usage}
 
     async def observe(self, action_result: dict[str, Any], **kwargs) -> str:
-        """Simple observation - return the response.
+        """Observe by returning the response.
 
         Args:
             action_result: Result from the action

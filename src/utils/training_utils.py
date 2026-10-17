@@ -162,7 +162,7 @@ class ClosureRecognitionAgent:
         )
 
         # Validate inputs
-        valid = all([isinstance(v, str) and v.strip() for v in [hypothesis, pattern, structure]])
+        valid = all(isinstance(v, str) and v.strip() for v in [hypothesis, pattern, structure])
 
         if valid:
             self.closed_loops.append(
@@ -346,7 +346,7 @@ class AdaptiveTrainingManager:
                             break
                         try:
                             validation_data.append(json.loads(line))
-                        except:
+                        except json.JSONDecodeError:
                             continue
 
         # Validate and check for closure

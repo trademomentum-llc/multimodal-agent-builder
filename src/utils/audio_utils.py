@@ -5,7 +5,7 @@ from pathlib import Path
 
 try:
     from pydub import AudioSegment
-    from pydub.silence import detect_nonsilent, detect_silence
+    from pydub.silence import detect_nonsilent
 
     PYDUB_AVAILABLE = True
 except ImportError:
@@ -94,19 +94,19 @@ class AudioProcessor:
         return audio.set_frame_rate(sample_rate)
 
     @staticmethod
-    def normalize(audio: AudioSegment, target_dBFS: float = -20.0) -> AudioSegment:
+    def normalize(audio: AudioSegment, target_dbfs: float = -20.0) -> AudioSegment:
         """Normalize audio volume.
 
         Args:
             audio: AudioSegment to normalize
-            target_dBFS: Target volume in dBFS
+            target_dbfs: Target volume in dBFS
 
         Returns:
             Normalized AudioSegment
 
         """
-        change_in_dBFS = target_dBFS - audio.dBFS
-        return audio.apply_gain(change_in_dBFS)
+        change_in_dbfs = target_dbfs - audio.dBFS
+        return audio.apply_gain(change_in_dbfs)
 
     @staticmethod
     def trim_silence(
@@ -221,7 +221,7 @@ class AudioProcessor:
 
         # Normalize volume
         if normalize_volume:
-            audio = AudioProcessor.normalize(audio, target_dBFS=-20.0)
+            audio = AudioProcessor.normalize(audio, target_dbfs=-20.0)
 
         # Trim silence
         audio = AudioProcessor.trim_silence(audio)
@@ -344,5 +344,5 @@ def validate_audio(audio_path: str) -> bool:
         if PYDUB_AVAILABLE:
             AudioSegment.from_file(str(path))
         return True
-    except:
+    except Exception:
         return False

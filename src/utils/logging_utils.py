@@ -80,7 +80,7 @@ def setup_logger(
     log_file: str | None = None,
     format_type: str | None = None,
 ) -> logging.Logger:
-    """Setup a logger with configured handlers.
+    """Set up a logger with configured handlers.
 
     Args:
         name: Logger name

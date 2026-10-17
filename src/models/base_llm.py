@@ -223,5 +223,5 @@ class BaseLLMClient(ABC):
         return prepared
 
     def __repr__(self) -> str:
-        """String representation of the client."""
+        """Return a string representation of the client."""
         return f"{self.__class__.__name__}(model='{self.model}')"

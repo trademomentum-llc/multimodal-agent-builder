@@ -33,7 +33,9 @@ class ApiKeyRecord:
 api_keys_store: dict[str, ApiKeyRecord] = {}
 
 
-def issue_api_key(name: str, ttl_seconds: int | None = None, metadata: dict[str, str] | None = None) -> str:
+def issue_api_key(
+    name: str, ttl_seconds: int | None = None, metadata: dict[str, str] | None = None
+) -> str:
     """Create and register a new API key.
 
     Returns the token in the format <key_id>.<secret>. Only the hash is stored.

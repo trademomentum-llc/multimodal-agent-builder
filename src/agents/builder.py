@@ -7,6 +7,7 @@ from src.utils.dataset_manager import DatasetManager
 
 class AgentBuilder:
     """Factory for building specialized agent classes, injecting dependencies.
+
     Usage:
         builder = AgentBuilder(dataset_root="train-test-validate")
         analysis = builder.build_data_analysis_agent()

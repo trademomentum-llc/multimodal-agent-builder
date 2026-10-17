@@ -119,7 +119,7 @@ async def start_training(
 
     except Exception as e:
         logger.error(f"Failed to start training: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 async def run_training_async(agent_name: str, dataset_type: str, epochs: int, enable_closure: bool):
@@ -243,7 +243,7 @@ async def log_loop_closure(request: LoopClosureRequest) -> dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Failed to log closure: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/ledger/{agent_name}", response_model=LedgerResponse)
@@ -360,7 +360,7 @@ async def create_training_pipeline(
 
     except Exception as e:
         logger.error(f"Pipeline failed for {agent_name}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/datasets", response_model=dict[str, Any])

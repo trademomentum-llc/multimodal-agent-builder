@@ -255,7 +255,7 @@ Thought: {agent_scratchpad}""",
 
         """
         # Extract the actual input from the thought
-        input_str = thought.replace("Processing: ", "").rstrip("...")
+        input_str = thought.replace("Processing: ", "").removesuffix("...")
 
         try:
             # Run the agent executor
@@ -348,7 +348,7 @@ Thought: {agent_scratchpad}""",
         self.agent_executor = self._create_agent_executor()
 
     def _calculator(self, expression: str) -> str:
-        """Simple calculator function.
+        """Evaluate a simple arithmetic expression.
 
         Args:
             expression: Mathematical expression

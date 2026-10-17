@@ -300,7 +300,7 @@ def validate_image(image_path: str) -> bool:
 
         Image.open(path).verify()
         return True
-    except:
+    except Exception:
         return False
 
 

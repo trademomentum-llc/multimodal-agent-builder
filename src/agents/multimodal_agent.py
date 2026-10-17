@@ -183,11 +183,11 @@ class MultimodalAgent(BaseAgent):
             # Interpret tool execution result
             prompt = f"""
             Based on the following thought and action result, provide a clear response:
-            
+
             Thought: {action_result.get("thought", "")}
             Tool: {action_result.get("tool", "")}
             Result: {action_result.get("result", "")}
-            
+
             Provide a helpful response to the user.
             """
 

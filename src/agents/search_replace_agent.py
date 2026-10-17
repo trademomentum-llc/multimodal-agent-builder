@@ -7,13 +7,19 @@ from typing import Any
 
 class SearchReplaceAgent:
     """Agent for searching (and optionally replacing) regex patterns across all files.
+
     Supports dry-run (no writes), directory filtering, and summary reporting.
     """
 
     def __init__(self, repo_root: str = "."):
         self.repo_root = Path(repo_root)
 
-    def search(self, pattern: str, file_extensions: list[str] | None = None, ignore_dirs: list[str] | None = None) -> dict[str, list[str]]:
+    def search(
+        self,
+        pattern: str,
+        file_extensions: list[str] | None = None,
+        ignore_dirs: list[str] | None = None,
+    ) -> dict[str, list[str]]:
         """Return files and line numbers where pattern occurs."""
         regex: Pattern[str] = re.compile(pattern)
         results: dict[str, list[str]] = {}
@@ -22,12 +28,21 @@ class SearchReplaceAgent:
                 with open(file_path, encoding="utf-8", errors="ignore") as f:
                     for i, line in enumerate(f, 1):
                         if regex.search(line):
-                            results.setdefault(str(file_path), []).append(f"Line {i}: {line.rstrip()}")
+                            results.setdefault(str(file_path), []).append(
+                                f"Line {i}: {line.rstrip()}"
+                            )
             except Exception:
                 continue
         return results
 
-    def replace(self, pattern: str, repl: str, file_extensions: list[str] | None = None, ignore_dirs: list[str] | None = None, dry_run: bool = True) -> list[dict[str, Any]]:
+    def replace(
+        self,
+        pattern: str,
+        repl: str,
+        file_extensions: list[str] | None = None,
+        ignore_dirs: list[str] | None = None,
+        dry_run: bool = True,
+    ) -> list[dict[str, Any]]:
         """Replace pattern with repl in matching files. Returns list of changes."""
         regex: Pattern[str] = re.compile(pattern)
         changes: list[dict[str, Any]] = []
@@ -56,4 +71,3 @@ class SearchReplaceAgent:
             for file in files:
                 if (not file_extensions) or any(file.endswith(ext) for ext in file_extensions):
                     yield Path(root) / file
-
