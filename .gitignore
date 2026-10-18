@@ -25,6 +25,7 @@ ENV/
 .coverage
 .pytest_cache/
 htmlcov/
+coverage.xml
 
 # Distribution / packaging
 dist/
