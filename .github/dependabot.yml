@@ -7,6 +7,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 3
     open-pull-requests-limit: 10
     # Hold eslint on major 9: eslint-plugin-react 7.37.x only supports eslint up to ^9.7,
     # so eslint 10 breaks `npm ci` (ERESOLVE). Remove once the plugin supports eslint 10.
@@ -23,6 +25,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 3
     groups:
       actions:
         patterns:
