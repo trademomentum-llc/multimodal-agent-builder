@@ -41,7 +41,6 @@ export default function AgentLibrary() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -85,7 +84,7 @@ export default function AgentLibrary() {
         });
       }, 2000);
     },
-    onError: (error) => {
+    onError: () => {
       toast({
         title: 'Download Failed',
         description: 'Failed to download agent package',
@@ -112,7 +111,7 @@ export default function AgentLibrary() {
         description: `${agent?.name} has been ${action}ped`,
       });
     },
-    onError: (error) => {
+    onError: () => {
       toast({
         title: 'Action Failed',
         description: 'Failed to update agent status',

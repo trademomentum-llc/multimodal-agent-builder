@@ -12,8 +12,6 @@ import {
   Eye,
   Bot,
   Brain,
-  MessageCircle,
-  Play,
 } from 'lucide-react';
 
 interface AgentTypeCardProps {

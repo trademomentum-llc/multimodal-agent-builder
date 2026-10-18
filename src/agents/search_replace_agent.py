@@ -1,37 +1,58 @@
+import logging
 import os
 import re
+from collections.abc import Iterator
 from pathlib import Path
-from typing import List, Optional, Pattern, Dict, Any
+from re import Pattern
+from typing import Any
+
+_log = logging.getLogger(__name__)
+
 
 class SearchReplaceAgent:
-    """
-    Agent for searching (and optionally replacing) regex patterns across all files.
+    """Agent for searching (and optionally replacing) regex patterns across all files.
+
     Supports dry-run (no writes), directory filtering, and summary reporting.
     """
-    def __init__(self, repo_root: str = "."):
+
+    def __init__(self, repo_root: str = ".") -> None:
         self.repo_root = Path(repo_root)
 
-    def search(self, pattern: str, file_extensions: Optional[List[str]] = None, ignore_dirs: Optional[List[str]] = None) -> Dict[str, List[str]]:
+    def search(
+        self,
+        pattern: str,
+        file_extensions: list[str] | None = None,
+        ignore_dirs: list[str] | None = None,
+    ) -> dict[str, list[str]]:
         """Return files and line numbers where pattern occurs."""
         regex: Pattern[str] = re.compile(pattern)
-        results: Dict[str, List[str]] = {}
+        results: dict[str, list[str]] = {}
         for file_path in self._iter_files(file_extensions, ignore_dirs):
             try:
-                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                with open(file_path, encoding="utf-8", errors="ignore") as f:
                     for i, line in enumerate(f, 1):
                         if regex.search(line):
-                            results.setdefault(str(file_path), []).append(f"Line {i}: {line.rstrip()}")
-            except Exception as e:
-                continue
+                            results.setdefault(str(file_path), []).append(
+                                f"Line {i}: {line.rstrip()}"
+                            )
+            except OSError:
+                _log.debug("Skipping unreadable file %s", file_path, exc_info=True)
         return results
 
-    def replace(self, pattern: str, repl: str, file_extensions: Optional[List[str]] = None, ignore_dirs: Optional[List[str]] = None, dry_run: bool = True) -> List[Dict[str, Any]]:
+    def replace(
+        self,
+        pattern: str,
+        repl: str,
+        file_extensions: list[str] | None = None,
+        ignore_dirs: list[str] | None = None,
+        dry_run: bool = True,
+    ) -> list[dict[str, Any]]:
         """Replace pattern with repl in matching files. Returns list of changes."""
         regex: Pattern[str] = re.compile(pattern)
-        changes: List[Dict[str, Any]] = []
+        changes: list[dict[str, Any]] = []
         for file_path in self._iter_files(file_extensions, ignore_dirs):
             try:
-                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                with open(file_path, encoding="utf-8", errors="ignore") as f:
                     content = f.read()
                 matches = list(regex.finditer(content))
                 if matches:
@@ -42,11 +63,13 @@ class SearchReplaceAgent:
                         with open(file_path, "w", encoding="utf-8") as f:
                             f.write(new_content)
                         changes.append({"file": str(file_path), "changes": len(matches)})
-            except Exception as e:
-                continue
+            except OSError:
+                _log.debug("Skipping unreadable/unwritable file %s", file_path, exc_info=True)
         return changes
 
-    def _iter_files(self, file_extensions: Optional[List[str]], ignore_dirs: Optional[List[str]]):
+    def _iter_files(
+        self, file_extensions: list[str] | None, ignore_dirs: list[str] | None
+    ) -> Iterator[Path]:
         for root, dirs, files in os.walk(self.repo_root):
             # Filter out ignored directories
             if ignore_dirs:
@@ -54,4 +77,3 @@ class SearchReplaceAgent:
             for file in files:
                 if (not file_extensions) or any(file.endswith(ext) for ext in file_extensions):
                     yield Path(root) / file
-

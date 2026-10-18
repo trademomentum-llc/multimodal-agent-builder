@@ -1,8 +1,6 @@
 import { storage } from '../storage';
-import { agentFactory } from './agentFactory';
 import { openaiService } from './openai';
 import { auditLogger } from './auditLogger';
-import { foundationModel } from './foundationModel';
 import { Agent, InsertAgent } from '@shared/schema';
 
 interface MilitaryRank {
@@ -153,7 +151,7 @@ class NationalReserveService {
     }
 
     // Deploy specialized intelligence units
-    await this.deployIntelligenceUnits(userId, deployedAgents);
+    await this.deployIntelligenceUnits(userId);
 
     // Initialize cross-collaboration network
     await this.initializeCollaborationNetwork(deployedAgents);
@@ -161,11 +159,10 @@ class NationalReserveService {
     // Activate pattern recognition systems
     await this.activatePatternRecognition(deployedAgents);
 
-    await auditLogger.log(
+    await auditLogger.logWithMetadata(
       userId,
       'national_reserve.deploy',
       'agent_system',
-      null,
       { deployedCount: deployedAgents.length },
     );
 
@@ -236,10 +233,7 @@ class NationalReserveService {
     return await storage.createAgent(agentData);
   }
 
-  private async deployIntelligenceUnits(
-    userId: string,
-    commandAgents: Agent[],
-  ): Promise<void> {
+  private async deployIntelligenceUnits(userId: string): Promise<void> {
     const specializedTypes = [
       'Intelligence Analyst',
       'Communication Specialist',
@@ -330,7 +324,7 @@ class NationalReserveService {
     for (const agent of agents) {
       // Initialize pattern recognition with baseline patterns
       const patternRecognition = {
-        ...(agent.patternRecognition as any),
+        ...((agent.patternRecognition ?? {}) as Record<string, unknown>),
         activatedAt: new Date().toISOString(),
         baselinePatterns: await this.getBaselinePatterns(),
         learningEnabled: true,
@@ -374,15 +368,15 @@ class NationalReserveService {
       leetSpeak: leetPatterns.detected,
       subliminalIndicators,
       communicationStyle: this.analyzeCommunicationStyle(conversationText),
-      emotionalTone: analysis.result.sentiment || 'neutral',
+      emotionalTone:
+        (analysis.result.sentiment as string | undefined) || 'neutral',
     };
 
     // Log analysis for learning
-    await auditLogger.log(
+    await auditLogger.logWithMetadata(
       userId,
       'conversation.analyze',
       'communication',
-      null,
       {
         context,
         analysisResults: patternAnalysis,
@@ -476,7 +470,7 @@ class NationalReserveService {
     return 'neutral';
   }
 
-  private async getBaselinePatterns(): Promise<any> {
+  private async getBaselinePatterns(): Promise<unknown> {
     return {
       commonWords: ['the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for'],
       typicalSentenceLength: { min: 5, max: 20, average: 12 },
@@ -493,14 +487,15 @@ class NationalReserveService {
   async getReserveStatus(userId: string): Promise<{
     totalAgents: number;
     activeAgents: number;
-    commandStructure: any;
-    patternRecognitionStatus: any;
+    commandStructure: Record<string, { count: number; active: number }>;
+    patternRecognitionStatus: { enabled: boolean; activeMonitoring: number };
     lastActivity: string;
   }> {
     const agents = await storage.getAgents(userId);
     const reserveAgents = agents.filter((a) => a.rank && a.commandLevel);
 
-    const commandStructure = {};
+    const commandStructure: Record<string, { count: number; active: number }> =
+      {};
     for (const agent of reserveAgents) {
       const rank = agent.rank || 'unknown';
       if (!commandStructure[rank]) {
@@ -521,7 +516,8 @@ class NationalReserveService {
         activeMonitoring: reserveAgents.filter(
           (a) =>
             a.communicationAnalysis &&
-            (a.communicationAnalysis as any).realTimeMonitoring,
+            (a.communicationAnalysis as { realTimeMonitoring?: boolean })
+              .realTimeMonitoring,
         ).length,
       },
       lastActivity: new Date().toISOString(),

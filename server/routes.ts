@@ -17,12 +17,9 @@ import { foundationModel } from './services/foundationModel';
 import { twoFactorAuthService } from './services/twoFactorAuth';
 import { threatIntelligenceService } from './services/threatIntelligence';
 import multimodalRoutes from './routes/multimodal';
-import {
-  insertAgentSchema,
-  insertTaskSchema,
-  insertApprovalSchema,
-} from '@shared/schema';
-import { z } from 'zod';
+import { insertAgentSchema, insertTaskSchema } from '@shared/schema';
+import { errorMessage } from '@shared/errors';
+import type { AuthenticatedRequest } from './authTypes';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Security middleware
@@ -47,32 +44,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/multimodal', isAuthenticated, multimodalRoutes);
 
   // Two-Factor Authentication routes
-  app.get('/api/auth/2fa/setup', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+  app.get(
+    '/api/auth/2fa/setup',
+    isAuthenticated,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const user = await storage.getUser(userId);
 
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
+        if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+
+        await auditLogger.log(userId, '2fa.setup.start', 'security', null, req);
+
+        const setup = await twoFactorAuthService.generateTwoFactorSetup(
+          userId,
+          user.email || '',
+        );
+        res.json(setup);
+      } catch (error) {
+        console.error('Error setting up 2FA:', error);
+        res.status(500).json({ message: 'Failed to setup 2FA' });
       }
-
-      await auditLogger.log(userId, '2fa.setup.start', 'security', null, req);
-
-      const setup = await twoFactorAuthService.generateTwoFactorSetup(
-        userId,
-        user.email || '',
-      );
-      res.json(setup);
-    } catch (error: any) {
-      console.error('Error setting up 2FA:', error);
-      res.status(500).json({ message: 'Failed to setup 2FA' });
-    }
-  });
+    },
+  );
 
   app.post(
     '/api/auth/2fa/verify-setup',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user.claims.sub;
         const { secret, token, backupCodes } = req.body;
@@ -111,109 +112,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else {
           res.status(400).json({ message: 'Invalid verification code' });
         }
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error verifying 2FA setup:', error);
         res.status(500).json({ message: 'Failed to verify 2FA setup' });
       }
     },
   );
 
-  app.post('/api/auth/2fa/verify-login', async (req: any, res) => {
-    try {
-      const { userId, token } = req.body;
+  app.post(
+    '/api/auth/2fa/verify-login',
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const { userId, token } = req.body;
 
-      if (!userId || !token) {
-        return res.status(400).json({ message: 'Missing required fields' });
-      }
+        if (!userId || !token) {
+          return res.status(400).json({ message: 'Missing required fields' });
+        }
 
-      const verified = await twoFactorAuthService.verifyLoginToken(
-        userId,
-        token,
-      );
-
-      if (verified) {
-        // Generate secure session token
-        const sessionToken = twoFactorAuthService.generateSecureToken(
+        const verified = await twoFactorAuthService.verifyLoginToken(
           userId,
-          true,
+          token,
         );
 
-        await auditLogger.log(
+        if (verified) {
+          // Generate secure session token
+          const sessionToken = twoFactorAuthService.generateSecureToken(
+            userId,
+            true,
+          );
+
+          await auditLogger.log(
+            userId,
+            '2fa.login.success',
+            'security',
+            null,
+            req,
+          );
+          res.json({
+            success: true,
+            sessionToken,
+            message: '2FA verification successful',
+          });
+        } else {
+          await auditLogger.log(
+            userId,
+            '2fa.login.failed',
+            'security',
+            null,
+            req,
+            false,
+          );
+          res.status(400).json({ message: 'Invalid verification code' });
+        }
+      } catch (error) {
+        console.error('Error verifying 2FA login:', error);
+        res.status(500).json({ message: 'Failed to verify 2FA' });
+      }
+    },
+  );
+
+  app.post(
+    '/api/auth/2fa/disable',
+    isAuthenticated,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const { currentPassword, token } = req.body;
+
+        if (!currentPassword || !token) {
+          return res
+            .status(400)
+            .json({ message: 'Current password and 2FA token required' });
+        }
+
+        const disabled = await twoFactorAuthService.disableTwoFactor(
           userId,
-          '2fa.login.success',
-          'security',
-          null,
-          req,
+          currentPassword,
+          token,
         );
-        res.json({
-          success: true,
-          sessionToken,
-          message: '2FA verification successful',
-        });
-      } else {
-        await auditLogger.log(
-          userId,
-          '2fa.login.failed',
-          'security',
-          null,
-          req,
-          false,
-        );
-        res.status(400).json({ message: 'Invalid verification code' });
+
+        if (disabled) {
+          res.json({
+            success: true,
+            message: 'Two-factor authentication disabled',
+          });
+        } else {
+          res
+            .status(400)
+            .json({ message: 'Invalid credentials or verification code' });
+        }
+      } catch (error) {
+        console.error('Error disabling 2FA:', error);
+        res.status(500).json({ message: 'Failed to disable 2FA' });
       }
-    } catch (error: any) {
-      console.error('Error verifying 2FA login:', error);
-      res.status(500).json({ message: 'Failed to verify 2FA' });
-    }
-  });
+    },
+  );
 
-  app.post('/api/auth/2fa/disable', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { currentPassword, token } = req.body;
-
-      if (!currentPassword || !token) {
-        return res
-          .status(400)
-          .json({ message: 'Current password and 2FA token required' });
+  app.get(
+    '/api/auth/password-policy',
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const policy = twoFactorAuthService.getPasswordPolicy();
+        res.json(policy);
+      } catch (error) {
+        console.error('Error fetching password policy:', error);
+        res.status(500).json({ message: 'Failed to fetch password policy' });
       }
-
-      const disabled = await twoFactorAuthService.disableTwoFactor(
-        userId,
-        currentPassword,
-        token,
-      );
-
-      if (disabled) {
-        res.json({
-          success: true,
-          message: 'Two-factor authentication disabled',
-        });
-      } else {
-        res
-          .status(400)
-          .json({ message: 'Invalid credentials or verification code' });
-      }
-    } catch (error: any) {
-      console.error('Error disabling 2FA:', error);
-      res.status(500).json({ message: 'Failed to disable 2FA' });
-    }
-  });
-
-  app.get('/api/auth/password-policy', async (req: any, res) => {
-    try {
-      const policy = twoFactorAuthService.getPasswordPolicy();
-      res.json(policy);
-    } catch (error: any) {
-      console.error('Error fetching password policy:', error);
-      res.status(500).json({ message: 'Failed to fetch password policy' });
-    }
-  });
+    },
+  );
 
   app.post(
     '/api/auth/change-password',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user.claims.sub;
         const { currentPassword, newPassword, twoFactorToken } = req.body;
@@ -308,7 +319,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           req,
         );
         res.json({ success: true, message: 'Password changed successfully' });
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error changing password:', error);
         await auditLogger.log(
           req.user?.claims?.sub,
@@ -327,12 +338,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get(
     '/api/auth/password-expiry',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user.claims.sub;
         const expiry = await twoFactorAuthService.checkPasswordExpiry(userId);
         res.json(expiry);
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error checking password expiry:', error);
         res.status(500).json({ message: 'Failed to check password expiry' });
       }
@@ -343,7 +354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get(
     '/api/national-reserve/status',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user.claims.sub;
         await auditLogger.log(
@@ -460,7 +471,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
 
         res.json(reserveStatus);
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error fetching National Reserve status:', error);
         res.status(500).json({ message: 'Failed to fetch reserve status' });
       }
@@ -470,7 +481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post(
     '/api/national-reserve/deploy',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user.claims.sub;
         await auditLogger.log(
@@ -512,7 +523,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   name: `${deployment.typeName} ${String.fromCharCode(65 + i)}${i + 1}`, // A1, B2, etc.
                   typeId: agentType.id,
                   description: `National Reserve ${deployment.typeName} - Unit ${i + 1}`,
-                  config: {
+                  configuration: {
                     rank: deployment.typeName,
                     unitId: `NR-${agentType.id}-${String.fromCharCode(65 + i)}${i + 1}`,
                     deploymentTimestamp: Date.now(),
@@ -540,7 +551,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: 'National Reserve deployed successfully',
           timestamp: new Date().toISOString(),
         });
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error deploying National Reserve:', error);
         res.status(500).json({ message: 'Failed to deploy reserve' });
       }
@@ -550,12 +561,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post(
     '/api/national-reserve/analyze-pattern',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user.claims.sub;
-        const { text, context } = req.body;
+        const { text } = req.body;
 
-        await auditLogger.log(
+        await auditLogger.logWithMetadata(
           userId,
           'national-reserve.pattern-analysis',
           'national-reserve',
@@ -566,10 +577,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Advanced pattern recognition analysis
         const analysis = {
           leetSpeak: /[3471]/g.test(text) || /[@$]/g.test(text),
-          subliminalIndicators: [],
+          subliminalIndicators: [] as string[],
           communicationStyle: 'direct',
           emotionalTone: 'neutral',
-          hiddenMeaning: undefined,
+          hiddenMeaning: undefined as string | undefined,
         };
 
         // Check for subliminal patterns
@@ -609,7 +620,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         res.json(analysis);
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error analyzing pattern:', error);
         res.status(500).json({ message: 'Pattern analysis failed' });
       }
@@ -617,164 +628,184 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
-    } catch (error: any) {
-      console.error('Error fetching user:', error);
-      res.status(500).json({ message: 'Failed to fetch user' });
-    }
-  });
+  app.get(
+    '/api/auth/user',
+    isAuthenticated,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const user = await storage.getUser(userId);
+        res.json(user);
+      } catch (error) {
+        console.error('Error fetching user:', error);
+        res.status(500).json({ message: 'Failed to fetch user' });
+      }
+    },
+  );
 
   // Dashboard routes
-  app.get('/api/dashboard/stats', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      await auditLogger.log(
-        userId,
-        'dashboard.stats.view',
-        'dashboard',
-        null,
-        req,
-      );
+  app.get(
+    '/api/dashboard/stats',
+    isAuthenticated,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        await auditLogger.log(
+          userId,
+          'dashboard.stats.view',
+          'dashboard',
+          null,
+          req,
+        );
 
-      const stats = await storage.getDashboardStats(userId);
-      res.json(stats);
-    } catch (error: any) {
-      console.error('Error fetching dashboard stats:', error);
-      await auditLogger.log(
-        req.user.claims.sub,
-        'dashboard.stats.view',
-        'dashboard',
-        null,
-        req,
-        false,
-        error?.message,
-      );
-      res.status(500).json({ message: 'Failed to fetch dashboard statistics' });
-    }
-  });
+        const stats = await storage.getDashboardStats(userId);
+        res.json(stats);
+      } catch (error) {
+        console.error('Error fetching dashboard stats:', error);
+        await auditLogger.log(
+          req.user.claims.sub,
+          'dashboard.stats.view',
+          'dashboard',
+          null,
+          req,
+          false,
+          errorMessage(error),
+        );
+        res
+          .status(500)
+          .json({ message: 'Failed to fetch dashboard statistics' });
+      }
+    },
+  );
 
   // Security status route - Dynamic calculation based on real data
-  app.get('/api/security/status', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      await auditLogger.log(
-        userId,
-        'security.status.view',
-        'security',
-        null,
-        req,
-      );
-
-      // Get real data for security calculations
-      const agents = await storage.getAgents(userId);
-      const auditLogs = await storage.getAuditLogs(userId, 24);
-      const tasks = await storage.getTasks(userId);
-
-      // Calculate real security metrics
-      const protectedAgents = agents.filter(
-        (agent) => agent.status === 'active',
-      ).length;
-      const totalAgents = agents.length;
-
-      // Security events in last 24 hours (failed logins, suspicious activity)
-      const recentSecurityEvents = auditLogs.filter((log) => {
-        const logTime = new Date(log.createdAt || 0).getTime();
-        const last24Hours = Date.now() - 24 * 60 * 60 * 1000;
-        return (
-          logTime > last24Hours &&
-          (!log.success ||
-            log.action.includes('failed') ||
-            log.action.includes('error'))
+  app.get(
+    '/api/security/status',
+    isAuthenticated,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        await auditLogger.log(
+          userId,
+          'security.status.view',
+          'security',
+          null,
+          req,
         );
-      }).length;
 
-      // Calculate dynamic security score based on multiple factors
-      let securityScore = 0;
+        // Get real data for security calculations
+        const agents = await storage.getAgents(userId);
+        const auditLogs = await storage.getAuditLogs(userId, 24);
+        const tasks = await storage.getTasks(userId);
 
-      // Base score for having agents protected (40% weight)
-      if (totalAgents > 0) {
-        securityScore += Math.round((protectedAgents / totalAgents) * 40);
+        // Calculate real security metrics
+        const protectedAgents = agents.filter(
+          (agent) => agent.status === 'active',
+        ).length;
+        const totalAgents = agents.length;
+
+        // Security events in last 24 hours (failed logins, suspicious activity)
+        const recentSecurityEvents = auditLogs.filter((log) => {
+          const logTime = new Date(log.createdAt || 0).getTime();
+          const last24Hours = Date.now() - 24 * 60 * 60 * 1000;
+          return (
+            logTime > last24Hours &&
+            (!log.success ||
+              log.action.includes('failed') ||
+              log.action.includes('error'))
+          );
+        }).length;
+
+        // Calculate dynamic security score based on multiple factors
+        let securityScore = 0;
+
+        // Base score for having agents protected (40% weight)
+        if (totalAgents > 0) {
+          securityScore += Math.round((protectedAgents / totalAgents) * 40);
+        }
+
+        // Security event penalty (30% weight)
+        const eventPenalty = Math.min(recentSecurityEvents * 5, 30);
+        securityScore += Math.max(0, 30 - eventPenalty);
+
+        // Task completion rate (15% weight)
+        const completedTasks = tasks.filter(
+          (task) => task.status === 'completed',
+        ).length;
+        const taskSuccessRate =
+          tasks.length > 0 ? completedTasks / tasks.length : 1;
+        securityScore += Math.round(taskSuccessRate * 15);
+
+        // Authentication and access control (15% weight)
+        const recentSuccessfulLogins = auditLogs.filter(
+          (log) => log.action.includes('auth') && log.success,
+        ).length;
+        securityScore += Math.min(recentSuccessfulLogins > 0 ? 15 : 5, 15);
+
+        // Ensure score is between 0-100
+        securityScore = Math.max(0, Math.min(100, securityScore));
+
+        // Determine compliance level based on score
+        let complianceLevel = 'Non-Compliant';
+        if (securityScore >= 90) complianceLevel = 'Fully Compliant';
+        else if (securityScore >= 70) complianceLevel = 'Mostly Compliant';
+        else if (securityScore >= 50) complianceLevel = 'Partially Compliant';
+
+        const securityStatus = {
+          overallScore: securityScore,
+          protectedAgents,
+          securityEvents: recentSecurityEvents,
+          lastScanTime: new Date().toISOString(),
+          complianceLevel,
+          // Additional details for transparency
+          scoreBreakdown: {
+            agentProtection: Math.round(
+              (protectedAgents / Math.max(totalAgents, 1)) * 40,
+            ),
+            securityEvents: Math.max(0, 30 - eventPenalty),
+            taskSuccess: Math.round(taskSuccessRate * 15),
+            accessControl: Math.min(recentSuccessfulLogins > 0 ? 15 : 5, 15),
+          },
+        };
+
+        res.json(securityStatus);
+      } catch (error) {
+        console.error('Error fetching security status:', error);
+        res.status(500).json({ message: 'Failed to fetch security status' });
       }
-
-      // Security event penalty (30% weight)
-      const eventPenalty = Math.min(recentSecurityEvents * 5, 30);
-      securityScore += Math.max(0, 30 - eventPenalty);
-
-      // Task completion rate (15% weight)
-      const completedTasks = tasks.filter(
-        (task) => task.status === 'completed',
-      ).length;
-      const taskSuccessRate =
-        tasks.length > 0 ? completedTasks / tasks.length : 1;
-      securityScore += Math.round(taskSuccessRate * 15);
-
-      // Authentication and access control (15% weight)
-      const recentSuccessfulLogins = auditLogs.filter(
-        (log) => log.action.includes('auth') && log.success,
-      ).length;
-      securityScore += Math.min(recentSuccessfulLogins > 0 ? 15 : 5, 15);
-
-      // Ensure score is between 0-100
-      securityScore = Math.max(0, Math.min(100, securityScore));
-
-      // Determine compliance level based on score
-      let complianceLevel = 'Non-Compliant';
-      if (securityScore >= 90) complianceLevel = 'Fully Compliant';
-      else if (securityScore >= 70) complianceLevel = 'Mostly Compliant';
-      else if (securityScore >= 50) complianceLevel = 'Partially Compliant';
-
-      const securityStatus = {
-        overallScore: securityScore,
-        protectedAgents,
-        securityEvents: recentSecurityEvents,
-        lastScanTime: new Date().toISOString(),
-        complianceLevel,
-        // Additional details for transparency
-        scoreBreakdown: {
-          agentProtection: Math.round(
-            (protectedAgents / Math.max(totalAgents, 1)) * 40,
-          ),
-          securityEvents: Math.max(0, 30 - eventPenalty),
-          taskSuccess: Math.round(taskSuccessRate * 15),
-          accessControl: Math.min(recentSuccessfulLogins > 0 ? 15 : 5, 15),
-        },
-      };
-
-      res.json(securityStatus);
-    } catch (error: any) {
-      console.error('Error fetching security status:', error);
-      res.status(500).json({ message: 'Failed to fetch security status' });
-    }
-  });
+    },
+  );
 
   // Blacklist management routes
-  app.get('/api/security/blacklist', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      await auditLogger.log(
-        userId,
-        'security.blacklist.view',
-        'security',
-        null,
-        req,
-      );
+  app.get(
+    '/api/security/blacklist',
+    isAuthenticated,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        await auditLogger.log(
+          userId,
+          'security.blacklist.view',
+          'security',
+          null,
+          req,
+        );
 
-      const stats = await threatIntelligenceService.getBlacklistStats();
-      res.json(stats);
-    } catch (error: any) {
-      console.error('Error fetching blacklist stats:', error);
-      res.status(500).json({ message: 'Failed to fetch blacklist statistics' });
-    }
-  });
+        const stats = await threatIntelligenceService.getBlacklistStats();
+        res.json(stats);
+      } catch (error) {
+        console.error('Error fetching blacklist stats:', error);
+        res
+          .status(500)
+          .json({ message: 'Failed to fetch blacklist statistics' });
+      }
+    },
+  );
 
   app.post(
     '/api/security/blacklist/remove',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user.claims.sub;
         const { ipAddress, reason } = req.body;
@@ -788,7 +819,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId,
           reason,
         );
-        await auditLogger.log(
+        await auditLogger.logWithMetadata(
           userId,
           'security.blacklist.removed',
           'security',
@@ -800,7 +831,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           success: true,
           message: `IP ${ipAddress} removed from blacklist`,
         });
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error removing from blacklist:', error);
         res.status(500).json({ message: 'Failed to remove IP from blacklist' });
       }
@@ -810,10 +841,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post(
     '/api/security/blacklist/add',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user.claims.sub;
-        const { ipAddress, reason, threatLevel, duration } = req.body;
+        const { ipAddress, reason, threatLevel } = req.body;
 
         if (!ipAddress || !reason) {
           return res
@@ -834,7 +865,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           req,
           threatAnalysis,
         );
-        await auditLogger.log(
+        await auditLogger.logWithMetadata(
           userId,
           'security.blacklist.manual_add',
           'security',
@@ -846,7 +877,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           success: true,
           message: `IP ${ipAddress} added to blacklist`,
         });
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error adding to blacklist:', error);
         res.status(500).json({ message: 'Failed to add IP to blacklist' });
       }
@@ -857,12 +888,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post(
     '/api/security/analyze-threat',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user.claims.sub;
         const analysis = threatIntelligenceService.analyzeThreat(req);
 
-        await auditLogger.log(
+        await auditLogger.logWithMetadata(
           userId,
           'security.threat.analyzed',
           'security',
@@ -875,7 +906,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
 
         res.json(analysis);
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error analyzing threat:', error);
         res.status(500).json({ message: 'Failed to analyze threat' });
       }
@@ -883,81 +914,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // Agents routes for library
-  app.get('/api/agents', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      await auditLogger.log(userId, 'agents.list.view', 'agents', null, req);
+  app.get(
+    '/api/agents',
+    isAuthenticated,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        await auditLogger.log(userId, 'agents.list.view', 'agents', null, req);
 
-      // Sample agents data for the library
-      const agents = [
-        {
-          id: 1,
-          name: 'Social Media Agent',
-          type: 'Social Media',
-          status: 'active',
-          description:
-            'Automated content generation and social media scheduling for all platforms',
-          capabilities: ['Content Generation', 'Scheduling', 'Analytics'],
-          createdAt: '2025-08-15T10:00:00Z',
-          lastActive: '2025-08-16T20:30:00Z',
-          performanceScore: 95,
-          instances: 3,
-        },
-        {
-          id: 2,
-          name: 'Email Marketing Agent',
-          type: 'Email Marketing',
-          status: 'active',
-          description:
-            'Campaign setup, management, and optimization for email marketing',
-          capabilities: ['Campaign Management', 'A/B Testing', 'Automation'],
-          createdAt: '2025-08-15T11:00:00Z',
-          lastActive: '2025-08-16T21:00:00Z',
-          performanceScore: 88,
-          instances: 5,
-        },
-        {
-          id: 3,
-          name: 'Security Monitor',
-          type: 'Security',
-          status: 'active',
-          description: 'Real-time security monitoring and threat detection',
-          capabilities: [
-            'Threat Detection',
-            'Real-time Monitoring',
-            'Automated Response',
-          ],
-          createdAt: '2025-08-15T12:00:00Z',
-          lastActive: '2025-08-16T21:05:00Z',
-          performanceScore: 100,
-          instances: 1,
-        },
-        {
-          id: 4,
-          name: 'Analytics Agent',
-          type: 'Analytics',
-          status: 'paused',
-          description: 'Business intelligence and performance analytics',
-          capabilities: ['Data Analysis', 'Report Generation', 'Insights'],
-          createdAt: '2025-08-15T13:00:00Z',
-          lastActive: '2025-08-16T19:00:00Z',
-          performanceScore: 92,
-          instances: 2,
-        },
-      ];
+        // Sample agents data for the library
+        const agents = [
+          {
+            id: 1,
+            name: 'Social Media Agent',
+            type: 'Social Media',
+            status: 'active',
+            description:
+              'Automated content generation and social media scheduling for all platforms',
+            capabilities: ['Content Generation', 'Scheduling', 'Analytics'],
+            createdAt: '2025-08-15T10:00:00Z',
+            lastActive: '2025-08-16T20:30:00Z',
+            performanceScore: 95,
+            instances: 3,
+          },
+          {
+            id: 2,
+            name: 'Email Marketing Agent',
+            type: 'Email Marketing',
+            status: 'active',
+            description:
+              'Campaign setup, management, and optimization for email marketing',
+            capabilities: ['Campaign Management', 'A/B Testing', 'Automation'],
+            createdAt: '2025-08-15T11:00:00Z',
+            lastActive: '2025-08-16T21:00:00Z',
+            performanceScore: 88,
+            instances: 5,
+          },
+          {
+            id: 3,
+            name: 'Security Monitor',
+            type: 'Security',
+            status: 'active',
+            description: 'Real-time security monitoring and threat detection',
+            capabilities: [
+              'Threat Detection',
+              'Real-time Monitoring',
+              'Automated Response',
+            ],
+            createdAt: '2025-08-15T12:00:00Z',
+            lastActive: '2025-08-16T21:05:00Z',
+            performanceScore: 100,
+            instances: 1,
+          },
+          {
+            id: 4,
+            name: 'Analytics Agent',
+            type: 'Analytics',
+            status: 'paused',
+            description: 'Business intelligence and performance analytics',
+            capabilities: ['Data Analysis', 'Report Generation', 'Insights'],
+            createdAt: '2025-08-15T13:00:00Z',
+            lastActive: '2025-08-16T19:00:00Z',
+            performanceScore: 92,
+            instances: 2,
+          },
+        ];
 
-      res.json(agents);
-    } catch (error: any) {
-      console.error('Error fetching agents:', error);
-      res.status(500).json({ message: 'Failed to fetch agents' });
-    }
-  });
+        res.json(agents);
+      } catch (error) {
+        console.error('Error fetching agents:', error);
+        res.status(500).json({ message: 'Failed to fetch agents' });
+      }
+    },
+  );
 
   // Agent actions
   app.get(
     '/api/agents/:id/download',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user.claims.sub;
         const agentId = req.params.id;
@@ -968,7 +1003,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           downloadUrl: `/downloads/agent-${agentId}.zip`,
           agentId: agentId,
         });
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error preparing agent download:', error);
         res.status(500).json({ message: 'Failed to prepare agent download' });
       }
@@ -978,7 +1013,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post(
     '/api/agents/:id/:action',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user.claims.sub;
         const agentId = req.params.id;
@@ -996,7 +1031,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           agentId: agentId,
           action: action,
         });
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error performing agent %s:', req.params.action, error);
         res
           .status(500)
@@ -1008,14 +1043,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get(
     '/api/dashboard/activities',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user.claims.sub;
         const limit = parseInt(req.query.limit as string) || 20;
 
         const activities = await storage.getActivities(userId, limit);
         res.json(activities);
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error fetching activities:', error);
         res.status(500).json({ message: 'Failed to fetch activities' });
       }
@@ -1023,33 +1058,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // Agent type routes
-  app.get('/api/agent-types', isAuthenticated, async (req: any, res) => {
-    try {
-      const agentTypes = await storage.getAgentTypes();
-      res.json(agentTypes);
-    } catch (error: any) {
-      console.error('Error fetching agent types:', error);
-      res.status(500).json({ message: 'Failed to fetch agent types' });
-    }
-  });
+  app.get(
+    '/api/agent-types',
+    isAuthenticated,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const agentTypes = await storage.getAgentTypes();
+        res.json(agentTypes);
+      } catch (error) {
+        console.error('Error fetching agent types:', error);
+        res.status(500).json({ message: 'Failed to fetch agent types' });
+      }
+    },
+  );
 
   // Agent routes
-  app.get('/api/agents', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const agents = await storage.getAgents(userId);
-      res.json(agents);
-    } catch (error: any) {
-      console.error('Error fetching agents:', error);
-      res.status(500).json({ message: 'Failed to fetch agents' });
-    }
-  });
+  app.get(
+    '/api/agents',
+    isAuthenticated,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const agents = await storage.getAgents(userId);
+        res.json(agents);
+      } catch (error) {
+        console.error('Error fetching agents:', error);
+        res.status(500).json({ message: 'Failed to fetch agents' });
+      }
+    },
+  );
 
   app.post(
     '/api/agents',
     isAuthenticated,
     validateRequest(insertAgentSchema),
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user.claims.sub;
         const agentData = { ...req.body, userId };
@@ -1068,7 +1111,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         res.status(201).json(agent);
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error creating agent:', error);
         await auditLogger.log(
           req.user.claims.sub,
@@ -1077,38 +1120,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           null,
           req,
           false,
-          error?.message,
+          errorMessage(error),
         );
         res.status(500).json({ message: 'Failed to create agent' });
       }
     },
   );
 
-  app.get('/api/agents/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const agentId = parseInt(req.params.id);
-      const agent = await storage.getAgent(agentId);
+  app.get(
+    '/api/agents/:id',
+    isAuthenticated,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const agentId = parseInt(req.params.id);
+        const agent = await storage.getAgent(agentId);
 
-      if (!agent) {
-        return res.status(404).json({ message: 'Agent not found' });
+        if (!agent) {
+          return res.status(404).json({ message: 'Agent not found' });
+        }
+
+        if (agent.userId !== req.user.claims.sub) {
+          return res.status(403).json({ message: 'Access denied' });
+        }
+
+        res.json(agent);
+      } catch (error) {
+        console.error('Error fetching agent:', error);
+        res.status(500).json({ message: 'Failed to fetch agent' });
       }
-
-      if (agent.userId !== req.user.claims.sub) {
-        return res.status(403).json({ message: 'Access denied' });
-      }
-
-      res.json(agent);
-    } catch (error) {
-      console.error('Error fetching agent:', error);
-      res.status(500).json({ message: 'Failed to fetch agent' });
-    }
-  });
+    },
+  );
 
   app.put(
     '/api/agents/:id',
     isAuthenticated,
     validateRequest(insertAgentSchema.partial()),
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const agentId = parseInt(req.params.id);
         const userId = req.user.claims.sub;
@@ -1136,7 +1183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         res.json(agent);
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error updating agent:', error);
         await auditLogger.log(
           req.user.claims.sub,
@@ -1145,74 +1192,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
           req.params.id,
           req,
           false,
-          error?.message,
+          errorMessage(error),
         );
         res.status(500).json({ message: 'Failed to update agent' });
       }
     },
   );
 
-  app.delete('/api/agents/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const agentId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+  app.delete(
+    '/api/agents/:id',
+    isAuthenticated,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const agentId = parseInt(req.params.id);
+        const userId = req.user.claims.sub;
 
-      const existingAgent = await storage.getAgent(agentId);
-      if (!existingAgent || existingAgent.userId !== userId) {
-        return res.status(404).json({ message: 'Agent not found' });
+        const existingAgent = await storage.getAgent(agentId);
+        if (!existingAgent || existingAgent.userId !== userId) {
+          return res.status(404).json({ message: 'Agent not found' });
+        }
+
+        await auditLogger.log(
+          userId,
+          'agent.delete',
+          'agent',
+          agentId.toString(),
+          req,
+        );
+
+        await storage.deleteAgent(agentId);
+
+        await storage.createActivity({
+          userId,
+          type: 'agent.deleted',
+          message: `Agent "${existingAgent.name}" was deleted`,
+        });
+
+        res.json({ message: 'Agent deleted successfully' });
+      } catch (error) {
+        console.error('Error deleting agent:', error);
+        await auditLogger.log(
+          req.user.claims.sub,
+          'agent.delete',
+          'agent',
+          req.params.id,
+          req,
+          false,
+          errorMessage(error),
+        );
+        res.status(500).json({ message: 'Failed to delete agent' });
       }
-
-      await auditLogger.log(
-        userId,
-        'agent.delete',
-        'agent',
-        agentId.toString(),
-        req,
-      );
-
-      await storage.deleteAgent(agentId);
-
-      await storage.createActivity({
-        userId,
-        type: 'agent.deleted',
-        message: `Agent "${existingAgent.name}" was deleted`,
-      });
-
-      res.json({ message: 'Agent deleted successfully' });
-    } catch (error: any) {
-      console.error('Error deleting agent:', error);
-      await auditLogger.log(
-        req.user.claims.sub,
-        'agent.delete',
-        'agent',
-        req.params.id,
-        req,
-        false,
-        error?.message,
-      );
-      res.status(500).json({ message: 'Failed to delete agent' });
-    }
-  });
+    },
+  );
 
   // Task routes
-  app.get('/api/tasks', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const limit = parseInt(req.query.limit as string) || 50;
+  app.get(
+    '/api/tasks',
+    isAuthenticated,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const limit = parseInt(req.query.limit as string) || 50;
 
-      const tasks = await storage.getTasks(userId, limit);
-      res.json(tasks);
-    } catch (error: any) {
-      console.error('Error fetching tasks:', error);
-      res.status(500).json({ message: 'Failed to fetch tasks' });
-    }
-  });
+        const tasks = await storage.getTasks(userId, limit);
+        res.json(tasks);
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+        res.status(500).json({ message: 'Failed to fetch tasks' });
+      }
+    },
+  );
 
   app.post(
     '/api/tasks',
     isAuthenticated,
     validateRequest(insertTaskSchema),
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user.claims.sub;
         const taskData = { ...req.body, userId };
@@ -1230,7 +1285,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         res.status(201).json(task);
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error creating task:', error);
         await auditLogger.log(
           req.user.claims.sub,
@@ -1239,7 +1294,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           null,
           req,
           false,
-          error?.message,
+          errorMessage(error),
         );
         res.status(500).json({ message: 'Failed to create task' });
       }
@@ -1250,7 +1305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     '/api/tasks/:id',
     isAuthenticated,
     validateRequest(insertTaskSchema.partial()),
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const taskId = parseInt(req.params.id);
         const userId = req.user.claims.sub;
@@ -1278,7 +1333,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         res.json(task);
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error updating task:', error);
         await auditLogger.log(
           req.user.claims.sub,
@@ -1287,7 +1342,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           req.params.id,
           req,
           false,
-          error?.message,
+          errorMessage(error),
         );
         res.status(500).json({ message: 'Failed to update task' });
       }
@@ -1295,23 +1350,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // Approval routes
-  app.get('/api/approvals', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const limit = parseInt(req.query.limit as string) || 50;
+  app.get(
+    '/api/approvals',
+    isAuthenticated,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const limit = parseInt(req.query.limit as string) || 50;
 
-      const approvals = await storage.getApprovals(userId, limit);
-      res.json(approvals);
-    } catch (error: any) {
-      console.error('Error fetching approvals:', error);
-      res.status(500).json({ message: 'Failed to fetch approvals' });
-    }
-  });
+        const approvals = await storage.getApprovals(userId, limit);
+        res.json(approvals);
+      } catch (error) {
+        console.error('Error fetching approvals:', error);
+        res.status(500).json({ message: 'Failed to fetch approvals' });
+      }
+    },
+  );
 
   app.post(
     '/api/approvals/:id/approve',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const approvalId = parseInt(req.params.id);
         const userId = req.user.claims.sub;
@@ -1342,7 +1401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         res.json(approval);
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error approving request:', error);
         await auditLogger.log(
           req.user.claims.sub,
@@ -1351,7 +1410,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           req.params.id,
           req,
           false,
-          error?.message,
+          errorMessage(error),
         );
         res.status(500).json({ message: 'Failed to approve request' });
       }
@@ -1361,7 +1420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post(
     '/api/approvals/:id/reject',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const approvalId = parseInt(req.params.id);
         const userId = req.user.claims.sub;
@@ -1392,7 +1451,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         res.json(approval);
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error rejecting request:', error);
         await auditLogger.log(
           req.user.claims.sub,
@@ -1401,7 +1460,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           req.params.id,
           req,
           false,
-          error?.message,
+          errorMessage(error),
         );
         res.status(500).json({ message: 'Failed to reject request' });
       }
@@ -1412,58 +1471,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get(
     '/api/security/audit-logs',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user.claims.sub;
         const limit = parseInt(req.query.limit as string) || 100;
 
         const auditLogs = await storage.getAuditLogs(userId, limit);
         res.json(auditLogs);
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error fetching audit logs:', error);
         res.status(500).json({ message: 'Failed to fetch audit logs' });
       }
     },
   );
 
-  app.get('/api/security/status', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const agents = await storage.getAgents(userId);
-      const auditLogs = await storage.getAuditLogs(userId, 24);
+  app.get(
+    '/api/security/status',
+    isAuthenticated,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const agents = await storage.getAgents(userId);
+        const auditLogs = await storage.getAuditLogs(userId, 24);
 
-      // Calculate security metrics
-      const protectedAgents = agents.filter(
-        (agent) => agent.status === 'active',
-      ).length;
-      const recentSecurityEvents = auditLogs.filter(
-        (log) =>
-          log.createdAt &&
-          new Date(log.createdAt).getTime() > Date.now() - 24 * 60 * 60 * 1000,
-      ).length;
+        // Calculate security metrics
+        const protectedAgents = agents.filter(
+          (agent) => agent.status === 'active',
+        ).length;
+        const recentSecurityEvents = auditLogs.filter(
+          (log) =>
+            log.createdAt &&
+            new Date(log.createdAt).getTime() >
+              Date.now() - 24 * 60 * 60 * 1000,
+        ).length;
 
-      const overallScore = Math.min(
-        100,
-        70 + protectedAgents * 5 + (recentSecurityEvents > 0 ? 15 : 0),
-      );
+        const overallScore = Math.min(
+          100,
+          70 + protectedAgents * 5 + (recentSecurityEvents > 0 ? 15 : 0),
+        );
 
-      res.json({
-        overallScore,
-        protectedAgents,
-        securityEvents: recentSecurityEvents,
-        lastScanTime: new Date().toISOString(),
-        complianceLevel: 'High',
-      });
-    } catch (error: any) {
-      console.error('Error fetching security status:', error);
-      res.status(500).json({ message: 'Failed to fetch security status' });
-    }
-  });
+        res.json({
+          overallScore,
+          protectedAgents,
+          securityEvents: recentSecurityEvents,
+          lastScanTime: new Date().toISOString(),
+          complianceLevel: 'High',
+        });
+      } catch (error) {
+        console.error('Error fetching security status:', error);
+        res.status(500).json({ message: 'Failed to fetch security status' });
+      }
+    },
+  );
 
   app.get(
     '/api/security/threat-analysis',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user.claims.sub;
         const auditLogs = await storage.getAuditLogs(userId, 100);
@@ -1478,7 +1542,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             log.action.includes('delete') || log.action.includes('admin'),
         ).length;
 
-        const threats = [];
+        const threats: Array<{
+          type: string;
+          description: string;
+          severity: string;
+          timestamp: string;
+        }> = [];
         if (failedLogins > 5) {
           threats.push({
             type: 'Multiple Failed Logins',
@@ -1503,7 +1572,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           riskLevel: threats.length > 0 ? 'Medium' : 'Low',
           lastAnalysis: new Date().toISOString(),
         });
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error performing threat analysis:', error);
         res.status(500).json({ message: 'Failed to perform threat analysis' });
       }
@@ -1514,7 +1583,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post(
     '/api/national-reserve/deploy',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user.claims.sub;
         const { nationalReserve } = await import('./services/nationalReserve');
@@ -1570,7 +1639,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             'Intent analysis and action planning',
           ],
         });
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error deploying National Reserve:', error);
         await auditLogger.log(
           req.user.claims.sub,
@@ -1579,7 +1648,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           null,
           req,
           false,
-          error?.message,
+          errorMessage(error),
         );
         res.status(500).json({ message: 'Failed to deploy National Reserve' });
       }
@@ -1589,14 +1658,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get(
     '/api/national-reserve/status',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user.claims.sub;
         const { nationalReserve } = await import('./services/nationalReserve');
 
         const status = await nationalReserve.getReserveStatus(userId);
         res.json(status);
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error fetching National Reserve status:', error);
         res
           .status(500)
@@ -1608,7 +1677,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post(
     '/api/national-reserve/analyze-conversation',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user.claims.sub;
         const { conversationText, context } = req.body;
@@ -1641,7 +1710,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
 
         res.json(analysis);
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error analyzing conversation:', error);
         await auditLogger.log(
           req.user.claims.sub,
@@ -1650,7 +1719,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           null,
           req,
           false,
-          error?.message,
+          errorMessage(error),
         );
         res.status(500).json({ message: 'Failed to analyze conversation' });
       }
@@ -1658,29 +1727,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // Credential management routes
-  app.get('/api/credentials', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const credentials = await storage.getCredentials(userId);
+  app.get(
+    '/api/credentials',
+    isAuthenticated,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const credentials = await storage.getCredentials(userId);
 
-      // Remove encrypted keys from response
-      const sanitizedCredentials = credentials.map((cred) => ({
-        ...cred,
-        encryptedKey: undefined,
-      }));
+        // Remove encrypted keys from response
+        const sanitizedCredentials = credentials.map((cred) => ({
+          ...cred,
+          encryptedKey: undefined,
+        }));
 
-      res.json(sanitizedCredentials);
-    } catch (error) {
-      console.error('Error fetching credentials:', error);
-      res.status(500).json({ message: 'Failed to fetch credentials' });
-    }
-  });
+        res.json(sanitizedCredentials);
+      } catch (error) {
+        console.error('Error fetching credentials:', error);
+        res.status(500).json({ message: 'Failed to fetch credentials' });
+      }
+    },
+  );
 
   // WebSocket server for real-time updates
   const httpServer = createServer(app);
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
 
-  wss.on('connection', (ws: WebSocket, req) => {
+  wss.on('connection', (ws: WebSocket) => {
     console.log('WebSocket connection established');
 
     ws.on('message', (message) => {
@@ -1722,7 +1795,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post(
     '/api/foundation-model/reasoning',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const { query, context } = req.body;
         const reasoning = await foundationModel.executeReasoning(
@@ -1730,7 +1803,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           context,
         );
         res.json(reasoning);
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error executing reasoning:', error);
         res.status(500).json({ message: 'Failed to execute reasoning' });
       }
@@ -1740,12 +1813,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post(
     '/api/foundation-model/intent-analysis',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const { text } = req.body;
         const analysis = await foundationModel.analyzeIntent(text);
         res.json(analysis);
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error analyzing intent:', error);
         res.status(500).json({ message: 'Failed to analyze intent' });
       }
@@ -1755,12 +1828,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post(
     '/api/foundation-model/workflow',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const { description } = req.body;
         const workflow = await foundationModel.createWorkflow(description);
         res.json(workflow);
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error creating workflow:', error);
         res.status(500).json({ message: 'Failed to create workflow' });
       }
@@ -1770,95 +1843,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // NVIDIA Data Flywheel API Routes
 
   // Get flywheel runs
-  app.get('/api/flywheel/runs', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      await auditLogger.log(
-        userId,
-        'flywheel.runs.view',
-        'flywheel',
-        null,
-        req,
-      );
+  app.get(
+    '/api/flywheel/runs',
+    isAuthenticated,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        await auditLogger.log(
+          userId,
+          'flywheel.runs.view',
+          'flywheel',
+          null,
+          req,
+        );
 
-      // For now, return sample data - in production this would query the database
-      const sampleRuns = [
-        {
-          id: 1,
-          name: 'General Agent Optimization',
-          description: 'Autonomous model discovery for general agent tasks',
-          status: 'completed',
-          baseModelId: 1,
-          targetWorkload: 'general_agent_tasks',
-          datasetSize: 15420,
-          costSavings: 87,
-          accuracyRetention: 94,
-          startedAt: new Date(Date.now() - 3600000).toISOString(),
-          completedAt: new Date().toISOString(),
-          createdAt: new Date(Date.now() - 3600000).toISOString(),
-        },
-        {
-          id: 2,
-          name: 'Customer Service Optimization',
-          description: 'Model distillation for customer service workflows',
-          status: 'running',
-          baseModelId: 2,
-          targetWorkload: 'customer_service',
-          datasetSize: 8950,
-          costSavings: 0,
-          accuracyRetention: 0,
-          startedAt: new Date(Date.now() - 1800000).toISOString(),
-          createdAt: new Date(Date.now() - 1800000).toISOString(),
-        },
-      ];
+        // For now, return sample data - in production this would query the database
+        const sampleRuns = [
+          {
+            id: 1,
+            name: 'General Agent Optimization',
+            description: 'Autonomous model discovery for general agent tasks',
+            status: 'completed',
+            baseModelId: 1,
+            targetWorkload: 'general_agent_tasks',
+            datasetSize: 15420,
+            costSavings: 87,
+            accuracyRetention: 94,
+            startedAt: new Date(Date.now() - 3600000).toISOString(),
+            completedAt: new Date().toISOString(),
+            createdAt: new Date(Date.now() - 3600000).toISOString(),
+          },
+          {
+            id: 2,
+            name: 'Customer Service Optimization',
+            description: 'Model distillation for customer service workflows',
+            status: 'running',
+            baseModelId: 2,
+            targetWorkload: 'customer_service',
+            datasetSize: 8950,
+            costSavings: 0,
+            accuracyRetention: 0,
+            startedAt: new Date(Date.now() - 1800000).toISOString(),
+            createdAt: new Date(Date.now() - 1800000).toISOString(),
+          },
+        ];
 
-      res.json(sampleRuns);
-    } catch (error: any) {
-      console.error('Error fetching flywheel runs:', error);
-      res.status(500).json({ message: 'Failed to fetch flywheel runs' });
-    }
-  });
+        res.json(sampleRuns);
+      } catch (error) {
+        console.error('Error fetching flywheel runs:', error);
+        res.status(500).json({ message: 'Failed to fetch flywheel runs' });
+      }
+    },
+  );
 
   // Start new flywheel run
-  app.post('/api/flywheel/runs', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { name, targetWorkload, description } = req.body;
+  app.post(
+    '/api/flywheel/runs',
+    isAuthenticated,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const { name, targetWorkload, description } = req.body;
 
-      await auditLogger.log(
-        userId,
-        'flywheel.run.create',
-        'flywheel',
-        null,
-        req,
-      );
+        await auditLogger.log(
+          userId,
+          'flywheel.run.create',
+          'flywheel',
+          null,
+          req,
+        );
 
-      // Simulate starting a new flywheel run
-      const newRun = {
-        id: Date.now(),
-        name,
-        description,
-        status: 'running',
-        targetWorkload,
-        datasetSize: 0,
-        costSavings: 0,
-        accuracyRetention: 0,
-        startedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-      };
+        // Simulate starting a new flywheel run
+        const newRun = {
+          id: Date.now(),
+          name,
+          description,
+          status: 'running',
+          targetWorkload,
+          datasetSize: 0,
+          costSavings: 0,
+          accuracyRetention: 0,
+          startedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+        };
 
-      res.json(newRun);
-    } catch (error: any) {
-      console.error('Error starting flywheel run:', error);
-      res.status(500).json({ message: 'Failed to start flywheel run' });
-    }
-  });
+        res.json(newRun);
+      } catch (error) {
+        console.error('Error starting flywheel run:', error);
+        res.status(500).json({ message: 'Failed to start flywheel run' });
+      }
+    },
+  );
 
   // Get model evaluations
   app.get(
     '/api/flywheel/evaluations',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user.claims.sub;
         await auditLogger.log(
@@ -1895,7 +1976,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ];
 
         res.json(sampleEvaluations);
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error fetching evaluations:', error);
         res.status(500).json({ message: 'Failed to fetch evaluations' });
       }
@@ -1906,7 +1987,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get(
     '/api/flywheel/optimizations',
     isAuthenticated,
-    async (req: any, res) => {
+    async (req: AuthenticatedRequest, res) => {
       try {
         const userId = req.user.claims.sub;
         await auditLogger.log(
@@ -1954,7 +2035,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ];
 
         res.json(sampleOptimizations);
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error fetching optimizations:', error);
         res.status(500).json({ message: 'Failed to fetch optimizations' });
       }

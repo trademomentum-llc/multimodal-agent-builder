@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import {
   Card,
@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -170,13 +169,14 @@ export default function TwoFactorSetup({
                 <Shield className="w-4 h-4" />
                 <AlertDescription>
                   Two-factor authentication (2FA) adds an extra layer of
-                  security to your account. You'll need an authenticator app
-                  like Google Authenticator, Authy, or Microsoft Authenticator.
+                  security to your account. You&apos;ll need an authenticator
+                  app like Google Authenticator, Authy, or Microsoft
+                  Authenticator.
                 </AlertDescription>
               </Alert>
 
               <div className="space-y-4">
-                <h3 className="text-lg font-medium">What you'll need:</h3>
+                <h3 className="text-lg font-medium">What you&apos;ll need:</h3>
                 <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
                   <li className="flex items-center space-x-2">
                     <Smartphone className="w-4 h-4" />
@@ -262,7 +262,7 @@ export default function TwoFactorSetup({
                     </div>
                     <p className="text-sm text-gray-500">
                       Enter this key manually in your authenticator app if you
-                      can't scan the QR code
+                      can&apos;t scan the QR code
                     </p>
                   </div>
                 </TabsContent>
@@ -360,7 +360,8 @@ export default function TwoFactorSetup({
                       <li>• Store these codes in a secure password manager</li>
                       <li>• Do not share these codes with anyone</li>
                       <li>
-                        • Generate new codes if you suspect they're compromised
+                        • Generate new codes if you suspect they&apos;re
+                        compromised
                       </li>
                     </ul>
                   </AlertDescription>

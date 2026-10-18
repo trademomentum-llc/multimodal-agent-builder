@@ -2,9 +2,10 @@
 
 import asyncio
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any
 
 from src.agents.agent_factory import AgentFactory
 from src.models.base_llm import BaseLLMClient, LLMResponse, Message, MessageRole
@@ -28,9 +29,9 @@ class CouncilMemberResult:
     model: str
     reasoning: str
     recommendation: str
-    usage: Optional[Dict[str, int]] = None
-    raw_response: Optional[Any] = None
-    error: Optional[str] = None
+    usage: dict[str, int] | None = None
+    raw_response: Any | None = None
+    error: str | None = None
     finished_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
 
 
@@ -40,7 +41,7 @@ class CouncilOutcome:
 
     conversation_id: str
     prompt: str
-    members: List[CouncilMemberResult]
+    members: list[CouncilMemberResult]
     council_summary: str
     recommended_action: str
     created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
@@ -51,10 +52,10 @@ class CouncilAgent:
 
     def __init__(
         self,
-        providers: Optional[Sequence[str]] = None,
+        providers: Sequence[str] | None = None,
         summarizer_provider: str = "openai",
-        system_prompt: Optional[str] = None,
-    ):
+        system_prompt: str | None = None,
+    ) -> None:
         self.providers = list(providers) if providers else ["openai", "gemini", "anthropic"]
         self.summarizer_provider = summarizer_provider
         self.system_prompt = system_prompt or (
@@ -65,8 +66,8 @@ class CouncilAgent:
     async def deliberate(
         self,
         prompt: str,
-        context: Optional[List[Dict[str, str]]] = None,
-        conversation_id: Optional[str] = None,
+        context: list[dict[str, str]] | None = None,
+        conversation_id: str | None = None,
     ) -> CouncilOutcome:
         """Fan out to configured providers and summarize the collective recommendation."""
         convo_id = conversation_id or str(uuid.uuid4())
@@ -82,8 +83,8 @@ class CouncilAgent:
         )
 
     async def _gather_members(
-        self, prompt: str, context: List[Dict[str, str]]
-    ) -> List[CouncilMemberResult]:
+        self, prompt: str, context: list[dict[str, str]]
+    ) -> list[CouncilMemberResult]:
         """Collect individual model reasoning concurrently."""
 
         async def run_member(provider: str) -> CouncilMemberResult:
@@ -116,9 +117,9 @@ class CouncilAgent:
         """Create an LLM client for a provider."""
         return AgentFactory.create_llm_client(provider=provider)
 
-    def _build_messages(self, prompt: str, context: List[Dict[str, str]]) -> List[Message]:
+    def _build_messages(self, prompt: str, context: list[dict[str, str]]) -> list[Message]:
         """Prepare conversation messages for provider calls."""
-        messages: List[Message] = []
+        messages: list[Message] = []
         for item in context:
             role = item.get("role", "user")
             content = item.get("content", "")
@@ -128,9 +129,7 @@ class CouncilAgent:
         messages.append(_to_message("user", prompt))
         return messages
 
-    async def _summarize(
-        self, members: List[CouncilMemberResult], prompt: str
-    ) -> Tuple[str, str]:
+    async def _summarize(self, members: list[CouncilMemberResult], prompt: str) -> tuple[str, str]:
         """Produce a unified summary and recommended action."""
         # If every model failed, bail out early with a clear message.
         successful = [m for m in members if not m.error and m.reasoning]

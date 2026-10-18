@@ -6,7 +6,6 @@ import Header from '@/components/Layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { BarChart, TrendingUp, Download, Calendar } from 'lucide-react';
-import { apiRequest } from '@/lib/queryClient';
 
 export default function Analytics() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -26,7 +25,7 @@ export default function Analytics() {
           description: 'Analytics data has been exported successfully',
         });
       }, 2000);
-    } catch (error) {
+    } catch {
       toast({
         title: 'Export Failed',
         description: 'Failed to export analytics data',
@@ -41,7 +40,7 @@ export default function Analytics() {
         title: 'Report Scheduled',
         description: 'Weekly analytics report has been scheduled',
       });
-    } catch (error) {
+    } catch {
       toast({
         title: 'Schedule Failed',
         description: 'Failed to schedule report',

@@ -2,7 +2,8 @@
 
 import base64
 import io
-from typing import Any, AsyncGenerator, Dict, List, Optional, Union
+from collections.abc import AsyncGenerator
+from typing import Any
 
 import numpy as np
 import openai
@@ -12,14 +13,14 @@ import tiktoken
 from PIL import Image
 
 from config.config import settings
-from src.models.base_llm import BaseLLMClient, LLMResponse, Message, MessageRole
+from src.models.base_llm import BaseLLMClient, LLMResponse, Message, MessageRole, ModelCapabilities
 
 
 class OpenAIClient(BaseLLMClient):
     """OpenAI GPT-4 client implementation."""
 
     # Model capabilities mapping
-    MODEL_CAPABILITIES = {
+    MODEL_CAPABILITIES: dict[str, ModelCapabilities] = {
         "gpt-4-turbo-preview": {
             "vision": True,
             "functions": True,
@@ -59,13 +60,13 @@ class OpenAIClient(BaseLLMClient):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
-        organization: Optional[str] = None,
-        **kwargs,
-    ):
+        api_key: str | None = None,
+        model: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        organization: str | None = None,
+        **kwargs: Any,
+    ) -> None:
         """Initialize OpenAI client.
 
         Args:
@@ -75,6 +76,7 @@ class OpenAIClient(BaseLLMClient):
             temperature: Temperature for sampling
             organization: Optional organization ID
             **kwargs: Additional parameters
+
         """
         # Use settings as defaults
         config = settings.get_llm_config("openai")
@@ -97,10 +99,10 @@ class OpenAIClient(BaseLLMClient):
 
     async def generate(
         self,
-        messages: List[Message],
-        functions: Optional[List[Dict[str, Any]]] = None,
-        function_call: Optional[Union[str, Dict[str, Any]]] = None,
-        **kwargs,
+        messages: list[Message],
+        functions: list[dict[str, Any]] | None = None,
+        function_call: str | dict[str, Any] | None = None,
+        **kwargs: Any,
     ) -> LLMResponse:
         """Generate a response from OpenAI GPT-4.
 
@@ -112,6 +114,7 @@ class OpenAIClient(BaseLLMClient):
 
         Returns:
             LLMResponse object
+
         """
         # Prepare messages
         prepared_messages = self.prepare_messages(messages)
@@ -153,7 +156,9 @@ class OpenAIClient(BaseLLMClient):
             raw_response=response,
         )
 
-    async def generate_stream(self, messages: List[Message], **kwargs) -> AsyncGenerator[str, None]:
+    async def generate_stream(
+        self, messages: list[Message], **kwargs: Any
+    ) -> AsyncGenerator[str, None]:
         """Generate a streaming response from OpenAI.
 
         Args:
@@ -162,6 +167,7 @@ class OpenAIClient(BaseLLMClient):
 
         Yields:
             Response chunks
+
         """
         prepared_messages = self.prepare_messages(messages)
 
@@ -180,7 +186,7 @@ class OpenAIClient(BaseLLMClient):
                 yield chunk.choices[0].delta.content
 
     async def generate_with_image(
-        self, prompt: str, image: Union[str, bytes, Image.Image, np.ndarray], **kwargs
+        self, prompt: str, image: str | bytes | Image.Image | np.ndarray, **kwargs: Any
     ) -> LLMResponse:
         """Generate a response based on text and image input.
 
@@ -191,6 +197,7 @@ class OpenAIClient(BaseLLMClient):
 
         Returns:
             LLMResponse object
+
         """
         if not self.supports_vision:
             raise ValueError(f"Model {self.model} does not support vision inputs")
@@ -215,8 +222,8 @@ class OpenAIClient(BaseLLMClient):
         return await self.generate(messages, **kwargs)
 
     async def generate_embeddings(
-        self, text: Union[str, List[str]], model: str = "text-embedding-3-small", **kwargs
-    ) -> Union[List[float], List[List[float]]]:
+        self, text: str | list[str], model: str = "text-embedding-3-small", **kwargs: Any
+    ) -> list[float] | list[list[float]]:
         """Generate embeddings for text.
 
         Args:
@@ -226,9 +233,10 @@ class OpenAIClient(BaseLLMClient):
 
         Returns:
             Embeddings
+
         """
         is_single = isinstance(text, str)
-        input_text = [text] if is_single else text
+        input_text: list[str] = [text] if isinstance(text, str) else text
 
         response = await self.client.embeddings.create(model=model, input=input_text, **kwargs)
 
@@ -244,10 +252,11 @@ class OpenAIClient(BaseLLMClient):
 
         Returns:
             Number of tokens
+
         """
         return len(self.tokenizer.encode(text))
 
-    def _process_image(self, image: Union[str, bytes, Image.Image, np.ndarray]) -> str:
+    def _process_image(self, image: str | bytes | Image.Image | np.ndarray) -> str:
         """Process image to base64 string.
 
         Args:
@@ -255,6 +264,7 @@ class OpenAIClient(BaseLLMClient):
 
         Returns:
             Base64 encoded image string
+
         """
         if isinstance(image, str):
             # If it's a file path
@@ -281,17 +291,17 @@ class OpenAIClient(BaseLLMClient):
     @property
     def supports_functions(self) -> bool:
         """Check if model supports function calling."""
-        return self.MODEL_CAPABILITIES.get(self.model, {"functions": False})["functions"]
+        return self.MODEL_CAPABILITIES.get(self.model, {}).get("functions", False)
 
     @property
     def supports_vision(self) -> bool:
         """Check if model supports vision inputs."""
-        return self.MODEL_CAPABILITIES.get(self.model, {"vision": False})["vision"]
+        return self.MODEL_CAPABILITIES.get(self.model, {}).get("vision", False)
 
     @property
     def supports_streaming(self) -> bool:
         """Check if model supports streaming."""
-        return self.MODEL_CAPABILITIES.get(self.model, {"streaming": True})["streaming"]
+        return self.MODEL_CAPABILITIES.get(self.model, {}).get("streaming", True)
 
     @property
     def max_context_length(self) -> int:

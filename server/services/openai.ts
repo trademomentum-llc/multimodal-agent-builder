@@ -32,9 +32,9 @@ export interface AnalysisRequest {
 }
 
 export interface AnalysisResponse {
-  result: any;
+  result: Record<string, unknown>;
   confidence: number;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 class OpenAIService {

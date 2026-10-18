@@ -1,17 +1,20 @@
 """Base agent abstract class for building AI agents."""
 
+import logging
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from pydantic import BaseModel, Field
 
 from src.models.base_llm import BaseLLMClient, LLMResponse, Message, MessageRole
-from src.utils.training_utils import RecursiveLoopClosureLedger
 from src.utils.grounding import get_grounding_summary
+from src.utils.training_utils import RecursiveLoopClosureLedger
+
+_log = logging.getLogger(__name__)
 
 
 class AgentState(Enum):
@@ -38,10 +41,10 @@ class AgentMemoryType(Enum):
 class AgentMemory:
     """Agent memory storage."""
 
-    short_term: List[Message] = field(default_factory=list)
-    long_term: Dict[str, Any] = field(default_factory=dict)
-    episodic: List[Dict[str, Any]] = field(default_factory=list)
-    semantic: Dict[str, Any] = field(default_factory=dict)
+    short_term: list[Message] = field(default_factory=list)
+    long_term: dict[str, Any] = field(default_factory=dict)
+    episodic: list[dict[str, Any]] = field(default_factory=list)
+    semantic: dict[str, Any] = field(default_factory=dict)
     max_short_term_size: int = 50
 
     def add_to_short_term(self, message: Message) -> None:
@@ -51,7 +54,7 @@ class AgentMemory:
         if len(self.short_term) > self.max_short_term_size:
             self.short_term = self.short_term[-self.max_short_term_size :]
 
-    def add_episodic_memory(self, episode: Dict[str, Any]) -> None:
+    def add_episodic_memory(self, episode: dict[str, Any]) -> None:
         """Add an episode to episodic memory."""
         episode["timestamp"] = datetime.utcnow().isoformat()
         self.episodic.append(episode)
@@ -60,7 +63,7 @@ class AgentMemory:
         """Clear short-term memory."""
         self.short_term.clear()
 
-    def get_context(self, max_messages: int = 10) -> List[Message]:
+    def get_context(self, max_messages: int = 10) -> list[Message]:
         """Get recent context from memory."""
         return self.short_term[-max_messages:] if self.short_term else []
 
@@ -71,10 +74,10 @@ class AgentConfig(BaseModel):
     name: str = Field(description="Agent name")
     description: str = Field(default="", description="Agent description")
     model_provider: str = Field(default="openai", description="LLM provider")
-    model: Optional[str] = Field(default=None, description="Model to use")
+    model: str | None = Field(default=None, description="Model to use")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     max_tokens: int = Field(default=4096, gt=0)
-    system_prompt: Optional[str] = Field(default=None, description="System prompt")
+    system_prompt: str | None = Field(default=None, description="System prompt")
     enable_memory: bool = Field(default=True, description="Enable memory")
     enable_tools: bool = Field(default=True, description="Enable tool usage")
     max_iterations: int = Field(default=10, description="Max reasoning iterations")
@@ -93,12 +96,12 @@ class AgentResponse(BaseModel):
     agent_id: str
     agent_name: str
     content: str
-    raw_response: Optional[Any] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    raw_response: Any | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
     timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
     state: str = Field(default=AgentState.COMPLETED.value)
-    error: Optional[str] = None
-    usage: Optional[Dict[str, int]] = None
+    error: str | None = None
+    usage: dict[str, int] | None = None
 
 
 class BaseAgent(ABC):
@@ -108,14 +111,15 @@ class BaseAgent(ABC):
         self,
         config: AgentConfig,
         llm_client: BaseLLMClient,
-        tools: Optional[List[Any]] = None,
-    ):
+        tools: list[Any] | None = None,
+    ) -> None:
         """Initialize the agent.
 
         Args:
             config: Agent configuration
             llm_client: LLM client to use
             tools: Optional list of tools/functions
+
         """
         self.id = str(uuid.uuid4())
         self.config = config
@@ -123,12 +127,12 @@ class BaseAgent(ABC):
         self.tools = tools or []
         self.state = AgentState.IDLE
         self.memory = AgentMemory() if config.enable_memory else None
-        self.conversation_history: List[Message] = []
+        self.conversation_history: list[Message] = []
         self.created_at = datetime.utcnow()
         self.last_activity = datetime.utcnow()
 
         # Optional recursive loop closure ledger per-agent instance
-        self._closure_ledger: Optional[RecursiveLoopClosureLedger] = None
+        self._closure_ledger: RecursiveLoopClosureLedger | None = None
         if getattr(self.config, "enable_recursive_closure", False):
             # Per-agent ledger file keeps runs isolated and auditable
             ledger_path = f"agent_{self.id}_closure_ledger.csv"
@@ -139,7 +143,7 @@ class BaseAgent(ABC):
         self._stabilizer_backoff_sec: float = 0.3
 
     # Shared prompt builders
-    def _build_system_prompt(self) -> Optional[str]:
+    def _build_system_prompt(self) -> str | None:
         base = self.config.system_prompt or ""
         ethics = get_grounding_summary()
         if ethics:
@@ -151,9 +155,9 @@ class BaseAgent(ABC):
     @abstractmethod
     async def think(
         self,
-        input_data: Union[str, Dict[str, Any]],
-        context: Optional[List[Message]] = None,
-        **kwargs,
+        input_data: str | dict[str, Any],
+        context: list[Message] | None = None,
+        **kwargs: Any,
     ) -> str:
         """Agent's thinking/reasoning process.
 
@@ -164,13 +168,14 @@ class BaseAgent(ABC):
 
         Returns:
             Thought/reasoning output
+
         """
         pass
 
     @abstractmethod
     async def act(
-        self, thought: str, available_actions: Optional[List[Dict[str, Any]]] = None, **kwargs
-    ) -> Dict[str, Any]:
+        self, thought: str, available_actions: list[dict[str, Any]] | None = None, **kwargs: Any
+    ) -> dict[str, Any]:
         """Agent's action selection and execution.
 
         Args:
@@ -180,11 +185,12 @@ class BaseAgent(ABC):
 
         Returns:
             Action result
+
         """
         pass
 
     @abstractmethod
-    async def observe(self, action_result: Dict[str, Any], **kwargs) -> str:
+    async def observe(self, action_result: dict[str, Any], **kwargs: Any) -> str:
         """Agent observes the result of its action.
 
         Args:
@@ -193,10 +199,11 @@ class BaseAgent(ABC):
 
         Returns:
             Observation
+
         """
         pass
 
-    async def run(self, input_data: Union[str, Dict[str, Any]], **kwargs) -> AgentResponse:
+    async def run(self, input_data: str | dict[str, Any], **kwargs: Any) -> AgentResponse:
         """Run the agent's complete cycle.
 
         Args:
@@ -205,6 +212,7 @@ class BaseAgent(ABC):
 
         Returns:
             Agent response
+
         """
         try:
             self.state = AgentState.THINKING
@@ -227,10 +235,15 @@ class BaseAgent(ABC):
 
             # Optionally detect and log recursive loop closure for this cycle
             try:
-                self._maybe_log_loop_closure(input_data=input_data, thought=thought, action=action_result, observation=observation)
+                self._maybe_log_loop_closure(
+                    input_data=input_data,
+                    thought=thought,
+                    action=action_result,
+                    observation=observation,
+                )
             except Exception:
                 # Closure logging must never affect core agent execution
-                pass
+                _log.debug("Loop-closure logging failed", exc_info=True)
 
             # Update memory if enabled
             if self.memory and isinstance(input_data, str):
@@ -264,9 +277,9 @@ class BaseAgent(ABC):
     # Internal helpers
     def _maybe_log_loop_closure(
         self,
-        input_data: Union[str, Dict[str, Any]],
+        input_data: str | dict[str, Any],
         thought: str,
-        action: Dict[str, Any],
+        action: dict[str, Any],
         observation: str,
     ) -> None:
         """Attempt to log a recursive loop closure for a single run cycle.
@@ -279,14 +292,17 @@ class BaseAgent(ABC):
 
         # Build hypothesis/pattern/structure from the current cycle
         hypothesis = (
-            thought if isinstance(thought, str) and thought.strip() else "Agent reasoning produced a hypothesis"
+            thought
+            if isinstance(thought, str) and thought.strip()
+            else "Agent reasoning produced a hypothesis"
         )
         action_type = action.get("type", "action") if isinstance(action, dict) else "action"
         pattern = f"Action={action_type}; Provider={self.config.model_provider}"
         structure = f"{self.__class__.__name__}::think->act->observe"
 
         explanation = (
-            f"Closed loop for input of type {type(input_data).__name__} with observation length {len(str(observation))}."
+            f"Closed loop for input of type {type(input_data).__name__} "
+            f"with observation length {len(str(observation))}."
         )
 
         # Best effort detection and logging (validation happens in the ledger)
@@ -298,9 +314,9 @@ class BaseAgent(ABC):
             topic=self.config.name or self.__class__.__name__,
         )
 
-    async def _stabilized_generate(self, *args, **kwargs) -> LLMResponse:
+    async def _stabilized_generate(self, *args: Any, **kwargs: Any) -> LLMResponse:
         """Call LLM with simple retry/backoff to self-stabilize transient failures."""
-        last_exc: Optional[Exception] = None
+        last_exc: Exception | None = None
         for attempt in range(self._stabilizer_max_retries + 1):
             try:
                 return await self.llm_client.generate(*args, **kwargs)
@@ -314,8 +330,8 @@ class BaseAgent(ABC):
                 await _asyncio.sleep(self._stabilizer_backoff_sec * (2**attempt))
         raise last_exc  # type: ignore[misc]
 
-    async def chat(self, message: str, **kwargs) -> AgentResponse:
-        """Simple chat interface for the agent.
+    async def chat(self, message: str, **kwargs: Any) -> AgentResponse:
+        """Chat with the agent through a simple interface.
 
         Args:
             message: User message
@@ -323,6 +339,7 @@ class BaseAgent(ABC):
 
         Returns:
             Agent response
+
         """
         try:
             self.state = AgentState.THINKING
@@ -397,7 +414,7 @@ class BaseAgent(ABC):
             self.memory.clear_short_term()
         self.conversation_history.clear()
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         """Get agent information."""
         return {
             "id": self.id,
@@ -414,5 +431,5 @@ class BaseAgent(ABC):
         }
 
     def __repr__(self) -> str:
-        """String representation of the agent."""
+        """Return a string representation of the agent."""
         return f"{self.__class__.__name__}(name='{self.config.name}', id='{self.id}')"

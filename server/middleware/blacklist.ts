@@ -1,3 +1,4 @@
+import type { AuthUser } from '../authTypes';
 import { Request, Response, NextFunction } from 'express';
 import { threatIntelligenceService } from '../services/threatIntelligence';
 import { auditLogger } from '../services/auditLogger';
@@ -23,7 +24,7 @@ export const blacklistMiddleware = async (
 
     if (isBlacklisted) {
       // Log the blocked attempt
-      await auditLogger.log(
+      await auditLogger.logWithMetadata(
         null,
         'security.blacklist.blocked',
         'security',
@@ -50,7 +51,7 @@ export const blacklistMiddleware = async (
   } catch (error) {
     console.error('Error in blacklist middleware:', error);
     // Don't block on middleware errors, but log them
-    await auditLogger.log(
+    await auditLogger.logWithMetadata(
       null,
       'security.blacklist.error',
       'security',
@@ -82,7 +83,7 @@ export const threatAnalysisMiddleware = async (
   };
 
   // Override json to capture response and analyze failures
-  res.json = function (data: any) {
+  res.json = function (data: unknown) {
     const clientIP = getClientIP(req);
 
     // Analyze on completion for threat patterns
@@ -132,7 +133,7 @@ export const authFailureHandler = async (
 
   if (clientIP && req.path.includes('/auth/') && res.statusCode === 401) {
     try {
-      const userId = (req as any).user?.claims?.sub || null;
+      const userId = (req.user as AuthUser | undefined)?.claims?.sub || null;
       await threatIntelligenceService.handleFailedLogin(clientIP, userId, req);
     } catch (error) {
       console.error('Error handling auth failure:', error);
@@ -150,8 +151,8 @@ function getClientIP(req: Request): string | null {
   const xForwardedFor = req.headers['x-forwarded-for'];
   const xRealIP = req.headers['x-real-ip'];
   const connectionRemoteAddress = req.connection?.remoteAddress;
-  const socketRemoteAddress = (req.socket as any)?.remoteAddress;
-  const reqIP = (req as any).ip;
+  const socketRemoteAddress = req.socket?.remoteAddress;
+  const reqIP = req.ip;
 
   let clientIP: string | null = null;
 

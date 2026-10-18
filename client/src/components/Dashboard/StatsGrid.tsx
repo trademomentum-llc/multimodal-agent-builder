@@ -1,4 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
+
+interface DashboardStats {
+  activeAgents?: number;
+  tasksProcessed?: number;
+  pendingApprovals?: number;
+  systemUptime?: number;
+}
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Bot, CheckCircle, Clock, Server, TrendingUp } from 'lucide-react';
@@ -18,7 +25,7 @@ export default function StatsGrid() {
     data: stats,
     isLoading,
     error,
-  } = useQuery({
+  } = useQuery<DashboardStats>({
     queryKey: ['/api/dashboard/stats'],
     refetchInterval: 300000, // Refresh every 5 minutes to reduce API calls
     refetchOnWindowFocus: false, // Prevent refetch on window focus
@@ -61,7 +68,7 @@ export default function StatsGrid() {
   const statCards: StatCard[] = [
     {
       title: 'Active Agents',
-      value: (stats as any)?.activeAgents || 0,
+      value: stats?.activeAgents || 0,
       change: '12% from last month',
       changeType: 'positive',
       icon: Bot,
@@ -69,7 +76,7 @@ export default function StatsGrid() {
     },
     {
       title: 'Tasks Processed',
-      value: (stats as any)?.tasksProcessed || 0,
+      value: stats?.tasksProcessed || 0,
       change: '8% from last week',
       changeType: 'positive',
       icon: CheckCircle,
@@ -77,7 +84,7 @@ export default function StatsGrid() {
     },
     {
       title: 'Pending Approvals',
-      value: (stats as any)?.pendingApprovals || 0,
+      value: stats?.pendingApprovals || 0,
       change: 'Needs attention',
       changeType: 'neutral',
       icon: Clock,
@@ -85,7 +92,7 @@ export default function StatsGrid() {
     },
     {
       title: 'System Uptime',
-      value: `${(stats as any)?.systemUptime || 99.9}%`,
+      value: `${stats?.systemUptime || 99.9}%`,
       change: 'All systems operational',
       changeType: 'positive',
       icon: Server,
@@ -95,7 +102,7 @@ export default function StatsGrid() {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      {statCards.map((card, index) => (
+      {statCards.map((card) => (
         <Card key={card.title} className="relative overflow-hidden">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">

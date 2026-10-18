@@ -1,12 +1,23 @@
 """Base LLM client abstract class."""
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, TypedDict
 
 import numpy as np
 from PIL import Image
+
+
+class ModelCapabilities(TypedDict, total=False):
+    """Static capability flags/limits for a model."""
+
+    vision: bool
+    functions: bool
+    streaming: bool
+    max_context: int
+    max_output: int
 
 
 class MessageRole(Enum):
@@ -23,13 +34,13 @@ class Message:
     """Represents a message in a conversation."""
 
     role: MessageRole
-    content: Union[str, List[Dict[str, Any]]]
-    name: Optional[str] = None
-    function_call: Optional[Dict[str, Any]] = None
+    content: str | list[dict[str, Any]]
+    name: str | None = None
+    function_call: dict[str, Any] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert message to dictionary."""
-        data = {"role": self.role.value, "content": self.content}
+        data: dict[str, Any] = {"role": self.role.value, "content": self.content}
         if self.name:
             data["name"] = self.name
         if self.function_call:
@@ -43,18 +54,23 @@ class LLMResponse:
 
     content: str
     model: str
-    usage: Dict[str, int]
-    finish_reason: Optional[str] = None
-    function_call: Optional[Dict[str, Any]] = None
-    raw_response: Optional[Any] = None
+    usage: dict[str, int]
+    finish_reason: str | None = None
+    function_call: dict[str, Any] | None = None
+    raw_response: Any | None = None
 
 
 class BaseLLMClient(ABC):
     """Abstract base class for LLM clients."""
 
     def __init__(
-        self, api_key: str, model: str, max_tokens: int = 4096, temperature: float = 0.7, **kwargs
-    ):
+        self,
+        api_key: str,
+        model: str,
+        max_tokens: int = 4096,
+        temperature: float = 0.7,
+        **kwargs: Any,
+    ) -> None:
         """Initialize the LLM client.
 
         Args:
@@ -63,6 +79,7 @@ class BaseLLMClient(ABC):
             max_tokens: Maximum tokens to generate
             temperature: Temperature for sampling
             **kwargs: Additional provider-specific arguments
+
         """
         self.api_key = api_key
         self.model = model
@@ -83,7 +100,7 @@ class BaseLLMClient(ABC):
             raise ValueError(f"max_tokens must be positive, got {self.max_tokens}")
 
     @abstractmethod
-    async def generate(self, messages: List[Message], **kwargs) -> LLMResponse:
+    async def generate(self, messages: list[Message], **kwargs: Any) -> LLMResponse:
         """Generate a response from the LLM.
 
         Args:
@@ -92,11 +109,12 @@ class BaseLLMClient(ABC):
 
         Returns:
             LLMResponse object
+
         """
         pass
 
     @abstractmethod
-    async def generate_stream(self, messages: List[Message], **kwargs):
+    def generate_stream(self, messages: list[Message], **kwargs: Any) -> AsyncIterator[str]:
         """Generate a streaming response from the LLM.
 
         Args:
@@ -105,12 +123,13 @@ class BaseLLMClient(ABC):
 
         Yields:
             Partial response chunks
+
         """
         pass
 
     @abstractmethod
     async def generate_with_image(
-        self, prompt: str, image: Union[str, bytes, Image.Image, np.ndarray], **kwargs
+        self, prompt: str, image: str | bytes | Image.Image | np.ndarray, **kwargs: Any
     ) -> LLMResponse:
         """Generate a response based on text and image input.
 
@@ -121,13 +140,14 @@ class BaseLLMClient(ABC):
 
         Returns:
             LLMResponse object
+
         """
         pass
 
     @abstractmethod
     async def generate_embeddings(
-        self, text: Union[str, List[str]], **kwargs
-    ) -> Union[List[float], List[List[float]]]:
+        self, text: str | list[str], **kwargs: Any
+    ) -> list[float] | list[list[float]]:
         """Generate embeddings for the given text.
 
         Args:
@@ -136,6 +156,7 @@ class BaseLLMClient(ABC):
 
         Returns:
             Embeddings as list of floats or list of lists
+
         """
         pass
 
@@ -148,6 +169,7 @@ class BaseLLMClient(ABC):
 
         Returns:
             Number of tokens
+
         """
         pass
 
@@ -176,8 +198,8 @@ class BaseLLMClient(ABC):
         pass
 
     def prepare_messages(
-        self, messages: List[Union[Message, Dict[str, Any]]], system_prompt: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        self, messages: Sequence[Message | dict[str, Any]], system_prompt: str | None = None
+    ) -> list[dict[str, Any]]:
         """Prepare messages for the API call.
 
         Args:
@@ -186,8 +208,9 @@ class BaseLLMClient(ABC):
 
         Returns:
             List of message dictionaries
+
         """
-        prepared = []
+        prepared: list[dict[str, Any]] = []
 
         if system_prompt:
             prepared.append({"role": MessageRole.SYSTEM.value, "content": system_prompt})
@@ -216,5 +239,5 @@ class BaseLLMClient(ABC):
         return prepared
 
     def __repr__(self) -> str:
-        """String representation of the client."""
+        """Return a string representation of the client."""
         return f"{self.__class__.__name__}(model='{self.model}')"

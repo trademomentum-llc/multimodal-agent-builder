@@ -1,6 +1,5 @@
 """Endpoints for council-style, multi-provider deliberation."""
 
-from typing import Dict, List, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
@@ -11,7 +10,7 @@ from src.agents.council_agent import CouncilAgent, CouncilMemberResult, CouncilO
 router = APIRouter(prefix="/council", tags=["council"])
 
 # In-memory session cache; swap for DB/cache in production
-council_sessions: Dict[str, CouncilOutcome] = {}
+council_sessions: dict[str, CouncilOutcome] = {}
 default_agent = CouncilAgent()
 
 
@@ -22,17 +21,17 @@ class MessageContext(BaseModel):
 
 class CouncilChatRequest(BaseModel):
     prompt: str = Field(description="User prompt to deliberate on")
-    context: Optional[List[MessageContext]] = Field(
+    context: list[MessageContext] | None = Field(
         default=None, description="Optional prior conversation turns"
     )
-    providers: Optional[List[str]] = Field(
+    providers: list[str] | None = Field(
         default=None,
         description="Override providers (default: openai, gemini, anthropic)",
     )
-    summarizer_provider: Optional[str] = Field(
+    summarizer_provider: str | None = Field(
         default=None, description="Provider to summarize council results"
     )
-    conversation_id: Optional[str] = Field(
+    conversation_id: str | None = Field(
         default=None, description="Conversation ID to reuse/track rounds"
     )
 
@@ -42,8 +41,8 @@ class CouncilMemberDTO(BaseModel):
     model: str
     reasoning: str
     recommendation: str
-    usage: Optional[Dict[str, int]] = None
-    error: Optional[str] = None
+    usage: dict[str, int] | None = None
+    error: str | None = None
     finished_at: str
 
     @staticmethod
@@ -64,7 +63,7 @@ class CouncilChatResponse(BaseModel):
     prompt: str
     council_summary: str
     recommended_action: str
-    members: List[CouncilMemberDTO]
+    members: list[CouncilMemberDTO]
     created_at: str
 
 
@@ -74,10 +73,8 @@ class CouncilDecisionRequest(BaseModel):
         description="approve|deny|edit|revise",
         pattern="^(approve|deny|edit|revise)$",
     )
-    edited_prompt: Optional[str] = Field(
-        default=None, description="New prompt if editing the request"
-    )
-    comments: Optional[str] = Field(default=None, description="Reviewer notes")
+    edited_prompt: str | None = Field(default=None, description="New prompt if editing the request")
+    comments: str | None = Field(default=None, description="Reviewer notes")
 
 
 class CouncilDecisionResponse(BaseModel):
@@ -86,8 +83,8 @@ class CouncilDecisionResponse(BaseModel):
     prompt: str
     council_summary: str
     recommended_action: str
-    members: List[CouncilMemberDTO]
-    reviewer_comments: Optional[str] = None
+    members: list[CouncilMemberDTO]
+    reviewer_comments: str | None = None
     created_at: str
 
 

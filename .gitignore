@@ -42,3 +42,6 @@ train-test-validate/ML-Testing/open_images_test_localized_narratives.jsonl
 train-test-validate/ML-Training/open_images_train_v6_asr.jsonl
 train-test-validate/ML-Training/open_images_train_v6_localized_narratives*.jsonl
 train-test-validate/ML-Validation/open_images_validation_localized_narratives.jsonl
+
+# Node dependencies (installed from package-lock.json via npm ci)
+node_modules/

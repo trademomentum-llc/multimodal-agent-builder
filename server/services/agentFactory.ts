@@ -1,8 +1,8 @@
-import { Agent, AgentType } from '@shared/schema';
+import { Agent } from '@shared/schema';
+import { errorMessage } from '@shared/errors';
 import { storage } from '../storage';
-import { openaiService } from './openai';
+import { openaiService, type ContentGenerationRequest } from './openai';
 import { auditLogger } from './auditLogger';
-import { foundationModel } from './foundationModel';
 
 export interface AgentConfig {
   apiKeys?: Record<string, string>;
@@ -22,7 +22,7 @@ export interface AgentConfig {
 export interface AgentCapability {
   name: string;
   description: string;
-  parameters: Record<string, any>;
+  parameters: Record<string, unknown>;
   securityLevel: 'low' | 'medium' | 'high';
 }
 
@@ -165,7 +165,7 @@ class AgentFactory {
       );
 
       // Initialize agent with default configuration
-      const defaultConfig = this.getDefaultConfig(agent);
+      const defaultConfig = this.getDefaultConfig();
 
       await storage.updateAgent(agent.id, {
         configuration: defaultConfig,
@@ -195,7 +195,7 @@ class AgentFactory {
         agent.id.toString(),
         null,
         false,
-        error.message,
+        errorMessage(error),
       );
 
       throw error;
@@ -205,8 +205,8 @@ class AgentFactory {
   async executeAgentTask(
     agentId: number,
     taskType: string,
-    parameters: any,
-  ): Promise<any> {
+    parameters: Record<string, unknown>,
+  ): Promise<unknown> {
     const agent = await storage.getAgent(agentId);
     if (!agent) {
       throw new Error('Agent not found');
@@ -245,7 +245,7 @@ class AgentFactory {
         null,
         null,
         false,
-        error.message,
+        errorMessage(error),
         { agentId, taskType, parameters },
       );
 
@@ -254,7 +254,7 @@ class AgentFactory {
         agentId: agent.id,
         type: 'task.failed',
         message: `Agent "${agent.name}" failed to complete task: ${taskType}`,
-        metadata: { taskType, parameters, error: error.message },
+        metadata: { taskType, parameters, error: errorMessage(error) },
       });
 
       throw error;
@@ -264,8 +264,8 @@ class AgentFactory {
   private async processTask(
     agent: Agent,
     taskType: string,
-    parameters: any,
-  ): Promise<any> {
+    parameters: Record<string, unknown>,
+  ): Promise<unknown> {
     const agentType = await this.getAgentTypeFromAgent(agent);
 
     switch (agentType) {
@@ -289,18 +289,19 @@ class AgentFactory {
   private async processSocialMediaTask(
     agent: Agent,
     taskType: string,
-    parameters: any,
-  ): Promise<any> {
+    parameters: Record<string, unknown>,
+  ): Promise<unknown> {
     switch (taskType) {
-      case 'generate_post':
-        const contentRequest = {
-          type: 'social_media' as const,
-          platform: parameters.platform,
-          topic: parameters.topic,
-          tone: parameters.tone || 'professional',
-          length: parameters.length || 'medium',
-          targetAudience: parameters.targetAudience,
-          keywords: parameters.keywords,
+      case 'generate_post': {
+        const p = parameters as Partial<ContentGenerationRequest>;
+        const contentRequest: ContentGenerationRequest = {
+          type: 'social_media',
+          platform: p.platform,
+          topic: p.topic ?? '',
+          tone: p.tone || 'professional',
+          length: p.length || 'medium',
+          targetAudience: p.targetAudience,
+          keywords: p.keywords,
         };
 
         const contentResult =
@@ -334,7 +335,7 @@ class AgentFactory {
           suggestions: contentResult.suggestions,
           metadata: contentResult.metadata,
         };
-
+      }
       case 'schedule_post':
         return {
           status: 'scheduled',
@@ -366,11 +367,14 @@ class AgentFactory {
   private async processEmailMarketingTask(
     agent: Agent,
     taskType: string,
-    parameters: any,
-  ): Promise<any> {
+    parameters: Record<string, unknown>,
+  ): Promise<unknown> {
     switch (taskType) {
-      case 'create_campaign':
+      case 'create_campaign': {
         const campaignId = `campaign_${Date.now()}`;
+        const recipients = Array.isArray(parameters.recipients)
+          ? parameters.recipients
+          : [];
 
         if (agent.securityConfig?.approvalRequired) {
           await storage.createApproval({
@@ -378,9 +382,9 @@ class AgentFactory {
             userId: agent.userId!,
             type: 'email_campaign',
             title: `Email Campaign: ${parameters.subject}`,
-            description: `Campaign to ${parameters.recipients.length} recipients`,
+            description: `Campaign to ${recipients.length} recipients`,
             requestData: parameters,
-            suggestedResponse: `Send campaign to ${parameters.recipients.length} recipients`,
+            suggestedResponse: `Send campaign to ${recipients.length} recipients`,
           });
 
           return {
@@ -393,10 +397,10 @@ class AgentFactory {
         return {
           status: 'created',
           campaignId,
-          recipients: parameters.recipients.length,
+          recipients: recipients.length,
           subject: parameters.subject,
         };
-
+      }
       case 'send_email':
         return {
           status: 'sent',
@@ -428,8 +432,8 @@ class AgentFactory {
   private async processAnalyticsTask(
     agent: Agent,
     taskType: string,
-    parameters: any,
-  ): Promise<any> {
+    parameters: Record<string, unknown>,
+  ): Promise<unknown> {
     switch (taskType) {
       case 'generate_report':
         return {
@@ -475,8 +479,8 @@ class AgentFactory {
   private async processFileSystemTask(
     agent: Agent,
     taskType: string,
-    parameters: any,
-  ): Promise<any> {
+    parameters: Record<string, unknown>,
+  ): Promise<unknown> {
     switch (taskType) {
       case 'organize_files':
         return {
@@ -510,7 +514,7 @@ class AgentFactory {
     }
   }
 
-  private getDefaultConfig(agent: Agent): AgentConfig {
+  private getDefaultConfig(): AgentConfig {
     return {
       apiKeys: {},
       webhooks: [],

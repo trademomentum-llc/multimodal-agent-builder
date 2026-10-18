@@ -1,11 +1,9 @@
 """Lightweight API key issuance and management endpoints."""
 
-from typing import Dict, List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from src.utils.auth_utils import (
-    ApiKeyRecord,
     issue_api_key,
     list_api_keys,
     revoke_api_key,
@@ -18,10 +16,10 @@ class ApiKeyCreateRequest(BaseModel):
     """Request payload to mint an API key."""
 
     name: str = Field(..., description="Display name/owner of the key")
-    ttl_seconds: Optional[int] = Field(
+    ttl_seconds: int | None = Field(
         default=None, description="Optional time-to-live for the key in seconds"
     )
-    metadata: Dict[str, str] = Field(default_factory=dict, description="Optional metadata tags")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Optional metadata tags")
 
 
 class ApiKeyResponse(BaseModel):
@@ -30,7 +28,7 @@ class ApiKeyResponse(BaseModel):
     token: str = Field(..., description="Bearer token in the format <key_id>.<secret>")
     key_id: str
     name: str
-    expires_at: Optional[float]
+    expires_at: float | None
 
 
 class ApiKeyListItem(BaseModel):
@@ -40,8 +38,8 @@ class ApiKeyListItem(BaseModel):
     name: str
     active: bool
     created_at: float
-    expires_at: Optional[float]
-    metadata: Dict[str, str] = Field(default_factory=dict)
+    expires_at: float | None
+    metadata: dict[str, str] = Field(default_factory=dict)
 
 
 @router.post("/keys", response_model=ApiKeyResponse)
@@ -62,11 +60,11 @@ async def create_api_key(request: ApiKeyCreateRequest) -> ApiKeyResponse:
     )
 
 
-@router.get("/keys", response_model=List[ApiKeyListItem])
-async def list_keys(include_inactive: bool = False) -> List[ApiKeyListItem]:
+@router.get("/keys", response_model=list[ApiKeyListItem])
+async def list_keys(include_inactive: bool = False) -> list[ApiKeyListItem]:
     """List stored API keys (secret never returned)."""
     keys = list_api_keys(include_inactive=include_inactive)
-    items: List[ApiKeyListItem] = []
+    items: list[ApiKeyListItem] = []
     for record in keys.values():
         items.append(
             ApiKeyListItem(
@@ -82,7 +80,7 @@ async def list_keys(include_inactive: bool = False) -> List[ApiKeyListItem]:
 
 
 @router.delete("/keys/{key_id}")
-async def delete_key(key_id: str) -> Dict[str, str]:
+async def delete_key(key_id: str) -> dict[str, str]:
     """Revoke an API key."""
     success = revoke_api_key(key_id)
     if not success:

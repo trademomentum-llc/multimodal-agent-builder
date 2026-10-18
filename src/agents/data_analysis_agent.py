@@ -1,17 +1,19 @@
+from typing import Any
+
 from src.utils.dataset_manager import DatasetManager
 
 
 class DataAnalysisAgent:
-    """
-    An agent for exploring and analyzing dataset splits (train/val/test),
-    generating statistics, summaries, and anomaly reports.
+    """An agent for exploring and analyzing dataset splits (train/val/test).
+
+    Generates statistics, summaries, and anomaly reports.
     """
 
-    def __init__(self, dataset_manager: DatasetManager):
+    def __init__(self, dataset_manager: DatasetManager) -> None:
         self.dataset_manager = dataset_manager
 
-    def analyze_split(self, split: str = "train"):
-        """Example: Print basic statistics for all files in the split."""
+    def analyze_split(self, split: str = "train") -> dict[str, Any]:
+        """Return basic statistics for all files in the split."""
         files = self.dataset_manager.list_files(split)
         return {
             "num_files": len(files),

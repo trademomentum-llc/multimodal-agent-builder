@@ -1,13 +1,12 @@
 """Audio processing utilities for multimodal agents."""
 
 import io
-import os
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Any
 
 try:
     from pydub import AudioSegment
-    from pydub.silence import detect_silence, detect_nonsilent
+    from pydub.silence import detect_nonsilent
 
     PYDUB_AVAILABLE = True
 except ImportError:
@@ -22,7 +21,7 @@ class AudioProcessor:
     SUPPORTED_FORMATS = {".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac", ".wma"}
     DEFAULT_SAMPLE_RATE = 16000  # 16kHz for speech
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize audio processor."""
         if not PYDUB_AVAILABLE:
             raise ImportError(
@@ -30,7 +29,7 @@ class AudioProcessor:
             )
 
     @staticmethod
-    def load_audio(audio_input: Union[str, bytes, AudioSegment]) -> AudioSegment:
+    def load_audio(audio_input: str | bytes | AudioSegment) -> AudioSegment:
         """Load audio from various input types.
 
         Args:
@@ -38,6 +37,7 @@ class AudioProcessor:
 
         Returns:
             AudioSegment object
+
         """
         if isinstance(audio_input, str):
             # File path
@@ -74,6 +74,7 @@ class AudioProcessor:
 
         Returns:
             Converted audio as bytes
+
         """
         buffer = io.BytesIO()
         audio.export(buffer, format=output_format)
@@ -89,22 +90,24 @@ class AudioProcessor:
 
         Returns:
             Resampled AudioSegment
+
         """
         return audio.set_frame_rate(sample_rate)
 
     @staticmethod
-    def normalize(audio: AudioSegment, target_dBFS: float = -20.0) -> AudioSegment:
+    def normalize(audio: AudioSegment, target_dbfs: float = -20.0) -> AudioSegment:
         """Normalize audio volume.
 
         Args:
             audio: AudioSegment to normalize
-            target_dBFS: Target volume in dBFS
+            target_dbfs: Target volume in dBFS
 
         Returns:
             Normalized AudioSegment
+
         """
-        change_in_dBFS = target_dBFS - audio.dBFS
-        return audio.apply_gain(change_in_dBFS)
+        change_in_dbfs = target_dbfs - audio.dBFS
+        return audio.apply_gain(change_in_dbfs)
 
     @staticmethod
     def trim_silence(
@@ -123,6 +126,7 @@ class AudioProcessor:
 
         Returns:
             Trimmed AudioSegment
+
         """
         nonsilent_ranges = detect_nonsilent(
             audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh
@@ -142,7 +146,7 @@ class AudioProcessor:
         min_silence_len: int = 500,
         silence_thresh: int = -40,
         keep_silence: int = 200,
-    ) -> list:
+    ) -> list[AudioSegment]:
         """Split audio on silence.
 
         Args:
@@ -153,6 +157,7 @@ class AudioProcessor:
 
         Returns:
             List of AudioSegment chunks
+
         """
         chunks = []
         nonsilent_ranges = detect_nonsilent(
@@ -167,7 +172,7 @@ class AudioProcessor:
         return chunks
 
     @staticmethod
-    def get_audio_info(audio: AudioSegment) -> dict:
+    def get_audio_info(audio: AudioSegment) -> dict[str, Any]:
         """Get audio metadata.
 
         Args:
@@ -175,6 +180,7 @@ class AudioProcessor:
 
         Returns:
             Dictionary of audio information
+
         """
         return {
             "duration_seconds": len(audio) / 1000.0,
@@ -204,6 +210,7 @@ class AudioProcessor:
 
         Returns:
             Prepared AudioSegment
+
         """
         # Convert to mono if needed
         if mono and audio.channels > 1:
@@ -215,7 +222,7 @@ class AudioProcessor:
 
         # Normalize volume
         if normalize_volume:
-            audio = AudioProcessor.normalize(audio, target_dBFS=-20.0)
+            audio = AudioProcessor.normalize(audio, target_dbfs=-20.0)
 
         # Trim silence
         audio = AudioProcessor.trim_silence(audio)
@@ -225,7 +232,7 @@ class AudioProcessor:
     @staticmethod
     def chunk_audio(
         audio: AudioSegment, chunk_length_ms: int = 30000, overlap_ms: int = 1000
-    ) -> list:
+    ) -> list[AudioSegment]:
         """Split audio into overlapping chunks.
 
         Args:
@@ -235,6 +242,7 @@ class AudioProcessor:
 
         Returns:
             List of AudioSegment chunks
+
         """
         chunks = []
         start = 0
@@ -251,7 +259,7 @@ class AudioProcessor:
 
 
 # Integration with Google Speech-to-Text (from localized-narratives)
-def prepare_for_google_speech(audio_path: str, output_path: Optional[str] = None) -> str:
+def prepare_for_google_speech(audio_path: str, output_path: str | None = None) -> str:
     """Prepare audio for Google Speech-to-Text API.
 
     Args:
@@ -260,6 +268,7 @@ def prepare_for_google_speech(audio_path: str, output_path: Optional[str] = None
 
     Returns:
         Path to prepared audio file
+
     """
     if not PYDUB_AVAILABLE:
         raise ImportError("pydub required for audio conversion")
@@ -289,6 +298,7 @@ def load_and_prepare_audio(audio_path: str, for_speech: bool = True) -> AudioSeg
 
     Returns:
         Prepared AudioSegment
+
     """
     processor = AudioProcessor()
     audio = processor.load_audio(audio_path)
@@ -307,6 +317,7 @@ def audio_to_wav_bytes(audio_path: str) -> bytes:
 
     Returns:
         WAV audio as bytes
+
     """
     processor = AudioProcessor()
     audio = processor.load_audio(audio_path)
@@ -321,6 +332,7 @@ def validate_audio(audio_path: str) -> bool:
 
     Returns:
         True if valid audio, False otherwise
+
     """
     try:
         path = Path(audio_path)
@@ -333,5 +345,5 @@ def validate_audio(audio_path: str) -> bool:
         if PYDUB_AVAILABLE:
             AudioSegment.from_file(str(path))
         return True
-    except:
+    except Exception:
         return False

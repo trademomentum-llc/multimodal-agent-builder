@@ -2,9 +2,16 @@
  * Multimodal API Routes - Secure multimodal agent interactions
  */
 
-import { Router } from 'express';
-import { multimodalAgent } from '../services/multimodalAgent';
-import { auditLogger } from '../services/auditLogger';
+import {
+  Router,
+  type NextFunction,
+  type Request,
+  type Response,
+} from 'express';
+import {
+  multimodalAgent,
+  type MultimodalInput,
+} from '../services/multimodalAgent';
 import multer from 'multer';
 import { z } from 'zod';
 
@@ -60,8 +67,8 @@ const audioRequestSchema = z.object({
  */
 router.post('/agents/:agentId/chat', async (req, res) => {
   try {
-    const agentId = parseInt(req.params.agentId);
-    const userId = req.user?.id;
+    const agentId = parseInt(String(req.params.agentId), 10);
+    const userId = req.user?.claims?.sub;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -103,8 +110,8 @@ router.post(
   upload.single('image'),
   async (req, res) => {
     try {
-      const agentId = parseInt(req.params.agentId);
-      const userId = req.user?.id;
+      const agentId = parseInt(String(req.params.agentId), 10);
+      const userId = req.user?.claims?.sub;
 
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
@@ -152,8 +159,8 @@ router.post(
   upload.single('audio'),
   async (req, res) => {
     try {
-      const agentId = parseInt(req.params.agentId);
-      const userId = req.user?.id;
+      const agentId = parseInt(String(req.params.agentId), 10);
+      const userId = req.user?.claims?.sub;
 
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
@@ -204,8 +211,8 @@ router.post(
   ]),
   async (req, res) => {
     try {
-      const agentId = parseInt(req.params.agentId);
-      const userId = req.user?.id;
+      const agentId = parseInt(String(req.params.agentId), 10);
+      const userId = req.user?.claims?.sub;
 
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
@@ -214,7 +221,7 @@ router.post(
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       const { text, sessionId } = req.body;
 
-      const inputs: any = { text };
+      const inputs: MultimodalInput = { text };
 
       if (files.image && files.image[0]) {
         inputs.image = files.image[0].buffer;
@@ -254,8 +261,8 @@ router.post(
  */
 router.get('/agents/:agentId/capabilities', async (req, res) => {
   try {
-    const agentId = parseInt(req.params.agentId);
-    const userId = req.user?.id;
+    const agentId = parseInt(String(req.params.agentId), 10);
+    const userId = req.user?.claims?.sub;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -278,8 +285,8 @@ router.get('/agents/:agentId/capabilities', async (req, res) => {
  */
 router.post('/agents/:agentId/memory/clear', async (req, res) => {
   try {
-    const agentId = parseInt(req.params.agentId);
-    const userId = req.user?.id;
+    const agentId = parseInt(String(req.params.agentId), 10);
+    const userId = req.user?.claims?.sub;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -303,7 +310,7 @@ router.post('/agents/:agentId/memory/clear', async (req, res) => {
 router.get('/sessions/:sessionId/history', async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const userId = req.user?.id;
+    const userId = req.user?.claims?.sub;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -323,24 +330,31 @@ router.get('/sessions/:sessionId/history', async (req, res) => {
 /**
  * Error handling middleware
  */
-router.use((error: any, req: any, res: any, next: any) => {
-  if (error instanceof multer.MulterError) {
-    if (error.code === 'LIMIT_FILE_SIZE') {
-      return res
-        .status(400)
-        .json({ error: 'File too large. Maximum size is 10MB.' });
+router.use(
+  (
+    error: Error & { code?: string },
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    if (error instanceof multer.MulterError) {
+      if (error.code === 'LIMIT_FILE_SIZE') {
+        return res
+          .status(400)
+          .json({ error: 'File too large. Maximum size is 10MB.' });
+      }
+      return res.status(400).json({ error: `Upload error: ${error.message}` });
     }
-    return res.status(400).json({ error: `Upload error: ${error.message}` });
-  }
 
-  if (
-    error.message.includes('File type') &&
-    error.message.includes('not allowed')
-  ) {
-    return res.status(400).json({ error: error.message });
-  }
+    if (
+      error.message.includes('File type') &&
+      error.message.includes('not allowed')
+    ) {
+      return res.status(400).json({ error: error.message });
+    }
 
-  next(error);
-});
+    next(error);
+  },
+);
 
 export default router;

@@ -17,11 +17,8 @@ import {
   Zap,
   TrendingUp,
   DollarSign,
-  Clock,
   Target,
-  Settings,
   Play,
-  Pause,
   RefreshCw,
   ChevronRight,
   Cpu,
@@ -31,7 +28,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
 
 interface FlywheelRun {
   id: number;
@@ -45,18 +41,6 @@ interface FlywheelRun {
   accuracyRetention: number;
   startedAt?: string;
   completedAt?: string;
-  createdAt: string;
-}
-
-interface ModelEvaluation {
-  id: number;
-  modelId: number;
-  experimentType: string;
-  workloadId: string;
-  accuracyScore: number;
-  latency: number;
-  costPerRequest: number;
-  isPromoted: boolean;
   createdAt: string;
 }
 
@@ -81,12 +65,6 @@ export default function DataFlywheel() {
   // Fetch flywheel runs
   const { data: flywheelRuns = [] } = useQuery<FlywheelRun[]>({
     queryKey: ['/api/flywheel/runs'],
-    enabled: isAuthenticated,
-  });
-
-  // Fetch model evaluations
-  const { data: evaluations = [] } = useQuery<ModelEvaluation[]>({
-    queryKey: ['/api/flywheel/evaluations'],
     enabled: isAuthenticated,
   });
 
@@ -122,7 +100,7 @@ export default function DataFlywheel() {
         description: 'Model discovery and optimization process initiated.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: 'Error',
         description: error.message || 'Failed to start flywheel run',
@@ -146,9 +124,6 @@ export default function DataFlywheel() {
   }
 
   const runningRuns = flywheelRuns.filter((run) => run.status === 'running');
-  const completedRuns = flywheelRuns.filter(
-    (run) => run.status === 'completed',
-  );
 
   // Calculate aggregate metrics
   const totalCostSavings =
