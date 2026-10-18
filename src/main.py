@@ -1,16 +1,16 @@
 """Main FastAPI application for the Multimodal Agent Builder."""
 
 import asyncio
+import logging
 import os
 import time
-import uuid
 from collections import defaultdict
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Union
+from typing import Annotated, Any
 
 from fastapi import (
-    BackgroundTasks,
     FastAPI,
     File,
     Form,
@@ -20,40 +20,41 @@ from fastapi import (
     status,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 from config.config import settings
-_OTEL_AVAILABLE = True
-try:
-    from opentelemetry import trace  # type: ignore
-    from opentelemetry.exporter.otlp.proto.http.trace_exporter import (  # type: ignore
-        OTLPSpanExporter,
-    )
-    from opentelemetry.sdk.resources import Resource  # type: ignore
-    from opentelemetry.sdk.trace import TracerProvider  # type: ignore
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor  # type: ignore
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor  # type: ignore
-    from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor  # type: ignore
-except Exception:  # pragma: no cover
-    _OTEL_AVAILABLE = False
-from src.agents.agent_factory import AgentFactory, AgentType, LLMProvider
+from src.agents.agent_factory import AgentFactory
 from src.agents.base_agent import AgentResponse, BaseAgent
-from src.agents.multimodal_agent import MultimodalInput
-from src.api.auth import router as auth_router
+from src.agents.multimodal_agent import MultimodalAgent, MultimodalInput
+from src.api.council_api import router as council_router
 from src.api.evaluations import router as evaluations_router
 from src.api.rag_api import router as rag_api_router
 from src.api.training_endpoints import router as training_router
+from src.models.base_llm import Message, MessageRole
 from src.utils.auth_utils import verify_api_key_token
-import time
-from collections import defaultdict
-from src.api.council_api import router as council_router
-from src.api.rag_api import router as rag_api_router
 
+_log = logging.getLogger(__name__)
+
+CallNext = Callable[[Request], Awaitable[Response]]
+
+_OTEL_AVAILABLE = True
+try:
+    from opentelemetry import trace
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+        OTLPSpanExporter,
+    )
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+    from opentelemetry.sdk.resources import Resource
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+except Exception:  # pragma: no cover
+    _OTEL_AVAILABLE = False
 
 # Global agent storage (in production, use a database)
-agent_store: Dict[str, BaseAgent] = {}
-_agent_cleanup_task: Optional[asyncio.Task] = None
+agent_store: dict[str, BaseAgent] = {}
+_agent_cleanup_task: asyncio.Task[None] | None = None
 
 
 def prune_stale_agents(force: bool = False) -> int:
@@ -85,7 +86,7 @@ async def agent_cleanup_loop() -> None:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan manager."""
     # Startup
     print(f"Starting {settings.app_name} v{settings.app_version}")
@@ -122,6 +123,7 @@ app = FastAPI(
     debug=settings.app_debug,
 )
 
+
 # OpenTelemetry (optional; no-op if endpoint not configured)
 def _init_otel(app_: FastAPI) -> None:
     if not _OTEL_AVAILABLE:
@@ -133,10 +135,12 @@ def _init_otel(app_: FastAPI) -> None:
     if not endpoint:
         return
     try:
-        resource = Resource.create({
-            "service.name": settings.app_name,
-            "service.version": settings.app_version,
-        })
+        resource = Resource.create(
+            {
+                "service.name": settings.app_name,
+                "service.version": settings.app_version,
+            }
+        )
         provider = TracerProvider(resource=resource)
         span_exporter = OTLPSpanExporter(endpoint=endpoint)
         span_processor = BatchSpanProcessor(span_exporter)
@@ -148,18 +152,21 @@ def _init_otel(app_: FastAPI) -> None:
         HTTPXClientInstrumentor().instrument()
     except Exception:
         # Never block app startup on telemetry errors
-        pass
+        _log.warning(
+            "OpenTelemetry initialisation failed; continuing without tracing", exc_info=True
+        )
+
 
 _init_otel(app)
 
 # Basic security middleware: rate limiting and payload size guard
 _rate_window_starts_at = 0.0
-_rate_counts = defaultdict(int)
+_rate_counts: defaultdict[str, int] = defaultdict(int)
 _auth_whitelist_paths = {"/", "/health", "/docs", "/redoc", "/openapi.json"}
 
 
 @app.middleware("http")
-async def security_middleware(request: Request, call_next):
+async def security_middleware(request: Request, call_next: CallNext) -> Response:
     # Enforce max payload size (best-effort via Content-Length header)
     try:
         content_length = int(request.headers.get("content-length", "0"))
@@ -178,8 +185,7 @@ async def security_middleware(request: Request, call_next):
         try:
             if settings.redis_url:
                 # Optional Redis-based limiter
-                import asyncio
-                import redis.asyncio as redis  # type: ignore
+                import redis.asyncio as redis
 
                 r = redis.from_url(settings.redis_url, decode_responses=True)
                 key = f"rate:{request.client.host if request.client else 'unknown'}"
@@ -218,7 +224,7 @@ async def security_middleware(request: Request, call_next):
 
 
 @app.middleware("http")
-async def api_key_middleware(request: Request, call_next):
+async def api_key_middleware(request: Request, call_next: CallNext) -> Response:
     """Enforce bearer API key authentication for protected routes."""
     if not settings.require_api_key:
         return await call_next(request)
@@ -249,6 +255,7 @@ async def api_key_middleware(request: Request, call_next):
 
     return await call_next(request)
 
+
 # Add CORS middleware (tightened via settings)
 cors_origins = settings.allowed_origins
 app.add_middleware(
@@ -274,41 +281,39 @@ class CreateAgentRequest(BaseModel):
     name: str = Field(description="Agent name")
     type: str = Field(default="multimodal", description="Agent type")
     provider: str = Field(default="openai", description="LLM provider")
-    model: Optional[str] = Field(default=None, description="Model name")
-    description: Optional[str] = Field(default="", description="Agent description")
-    system_prompt: Optional[str] = Field(default=None, description="System prompt")
+    model: str | None = Field(default=None, description="Model name")
+    description: str | None = Field(default="", description="Agent description")
+    system_prompt: str | None = Field(default=None, description="System prompt")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     max_tokens: int = Field(default=4096, gt=0)
     enable_memory: bool = Field(default=True)
     enable_tools: bool = Field(default=True)
     enable_vision: bool = Field(default=True)
     enable_audio: bool = Field(default=True)
-    config: Dict[str, Any] = Field(default_factory=dict, description="Additional configuration")
+    config: dict[str, Any] = Field(default_factory=dict, description="Additional configuration")
 
 
 class ChatRequest(BaseModel):
     """Request model for chat interaction."""
 
     message: str = Field(description="User message")
-    context: Optional[List[Dict[str, str]]] = Field(
-        default=None, description="Conversation context"
-    )
+    context: list[dict[str, str]] | None = Field(default=None, description="Conversation context")
     stream: bool = Field(default=False, description="Enable streaming response")
 
 
 class MultimodalRequest(BaseModel):
     """Request model for multimodal input."""
 
-    text: Optional[str] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    text: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class InvokeRequest(BaseModel):
     """Request model for agent invocation."""
 
-    input: Union[str, Dict[str, Any]] = Field(description="Input data")
+    input: str | dict[str, Any] = Field(description="Input data")
     stream: bool = Field(default=False)
-    kwargs: Dict[str, Any] = Field(default_factory=dict)
+    kwargs: dict[str, Any] = Field(default_factory=dict)
 
 
 class AgentInfo(BaseModel):
@@ -325,7 +330,7 @@ class AgentInfo(BaseModel):
     tools_enabled: bool
     created_at: str
     last_activity: str
-    capabilities: Dict[str, bool] = Field(default_factory=dict)
+    capabilities: dict[str, bool] = Field(default_factory=dict)
 
 
 class HealthResponse(BaseModel):
@@ -334,14 +339,14 @@ class HealthResponse(BaseModel):
     status: str
     version: str
     environment: str
-    api_keys_configured: Dict[str, bool]
+    api_keys_configured: dict[str, bool]
 
 
 # API Endpoints
 
 
 @app.get("/", tags=["Root"])
-async def root():
+async def root() -> dict[str, Any]:
     """Root endpoint."""
     return {
         "name": settings.app_name,
@@ -352,7 +357,7 @@ async def root():
 
 
 @app.get("/health", response_model=HealthResponse, tags=["System"])
-async def health_check():
+async def health_check() -> HealthResponse:
     """Health check endpoint."""
     return HealthResponse(
         status="healthy",
@@ -363,7 +368,7 @@ async def health_check():
 
 
 @app.get("/providers", tags=["System"])
-async def list_providers():
+async def list_providers() -> dict[str, Any]:
     """List available LLM providers."""
     return {
         "providers": AgentFactory.get_available_providers(),
@@ -385,7 +390,7 @@ async def list_providers():
 
 
 @app.get("/agent-types", tags=["System"])
-async def list_agent_types():
+async def list_agent_types() -> dict[str, Any]:
     """List available agent types."""
     return {
         "types": AgentFactory.get_available_agent_types(),
@@ -398,7 +403,7 @@ async def list_agent_types():
 
 
 @app.post("/agents", response_model=AgentInfo, tags=["Agents"])
-async def create_agent(request: CreateAgentRequest):
+async def create_agent(request: CreateAgentRequest) -> AgentInfo:
     """Create a new agent."""
     try:
         # Create agent configuration
@@ -447,15 +452,15 @@ async def create_agent(request: CreateAgentRequest):
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to create agent: {str(e)}"
-        )
+        ) from e
 
 
-@app.get("/agents", response_model=List[AgentInfo], tags=["Agents"])
-async def list_agents():
+@app.get("/agents", response_model=list[AgentInfo], tags=["Agents"])
+async def list_agents() -> list[AgentInfo]:
     """List all agents."""
     agents_info = []
 
-    for agent_id, agent in agent_store.items():
+    for agent in agent_store.values():
         capabilities = {}
         if hasattr(agent, "get_capabilities"):
             capabilities = agent.get_capabilities()
@@ -481,7 +486,7 @@ async def list_agents():
 
 
 @app.get("/agents/{agent_id}", response_model=AgentInfo, tags=["Agents"])
-async def get_agent(agent_id: str):
+async def get_agent(agent_id: str) -> AgentInfo:
     """Get agent information."""
     if agent_id not in agent_store:
         raise HTTPException(
@@ -510,7 +515,7 @@ async def get_agent(agent_id: str):
 
 
 @app.delete("/agents/{agent_id}", tags=["Agents"])
-async def delete_agent(agent_id: str):
+async def delete_agent(agent_id: str) -> dict[str, str]:
     """Delete an agent."""
     if agent_id not in agent_store:
         raise HTTPException(
@@ -522,14 +527,14 @@ async def delete_agent(agent_id: str):
 
 
 @app.delete("/agents", tags=["Agents"])
-async def delete_stale_agents(force: bool = False):
+async def delete_stale_agents(force: bool = False) -> dict[str, Any]:
     """Delete stale agents or force-remove all."""
     removed = prune_stale_agents(force=force)
     return {"message": f"Removed {removed} agent(s)", "force": force}
 
 
 @app.post("/agents/{agent_id}/chat", response_model=AgentResponse, tags=["Agent Interaction"])
-async def chat_with_agent(agent_id: str, request: ChatRequest):
+async def chat_with_agent(agent_id: str, request: ChatRequest) -> StreamingResponse | AgentResponse:
     """Chat with an agent."""
     if agent_id not in agent_store:
         raise HTTPException(
@@ -541,9 +546,9 @@ async def chat_with_agent(agent_id: str, request: ChatRequest):
     try:
         if request.stream:
             # Streaming response
-            async def generate():
+            async def generate() -> AsyncIterator[str]:
                 async for chunk in agent.llm_client.generate_stream(
-                    [{"role": "user", "content": request.message}]
+                    [Message(role=MessageRole.USER, content=request.message)]
                 ):
                     yield chunk
 
@@ -556,11 +561,11 @@ async def chat_with_agent(agent_id: str, request: ChatRequest):
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Chat failed: {str(e)}"
-        )
+        ) from e
 
 
 @app.post("/agents/{agent_id}/invoke", response_model=AgentResponse, tags=["Agent Interaction"])
-async def invoke_agent(agent_id: str, request: InvokeRequest):
+async def invoke_agent(agent_id: str, request: InvokeRequest) -> AgentResponse:
     """Invoke agent with custom input."""
     if agent_id not in agent_store:
         raise HTTPException(
@@ -576,15 +581,15 @@ async def invoke_agent(agent_id: str, request: InvokeRequest):
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Invocation failed: {str(e)}"
-        )
+        ) from e
 
 
 @app.post("/agents/{agent_id}/process-image", response_model=AgentResponse, tags=["Multimodal"])
 async def process_image(
     agent_id: str,
-    image: UploadFile = File(...),
+    image: Annotated[UploadFile, File()],
     prompt: str = Form(default="What's in this image?"),
-):
+) -> AgentResponse:
     """Process an image with the agent."""
     if agent_id not in agent_store:
         raise HTTPException(
@@ -594,7 +599,7 @@ async def process_image(
     agent = agent_store[agent_id]
 
     # Check if agent supports vision
-    if not hasattr(agent, "process_image"):
+    if not isinstance(agent, MultimodalAgent):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="This agent does not support image processing",
@@ -603,14 +608,25 @@ async def process_image(
     try:
         # Validate content type and extension
         if image.content_type:
-            if not any(image.content_type.endswith(ext.strip()) for ext in settings.allowed_image_types.split(",")):
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported image content type")
-        if image.filename and not any(image.filename.lower().endswith(ext) for ext in settings.allowed_image_extensions):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported image file extension")
+            if not any(
+                image.content_type.endswith(ext.strip())
+                for ext in settings.allowed_image_types.split(",")
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported image content type"
+                )
+        if image.filename and not any(
+            image.filename.lower().endswith(ext) for ext in settings.allowed_image_extensions
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported image file extension"
+            )
         # Read image data
         image_data = await image.read()
         if len(image_data) > settings.max_file_size_bytes:
-            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Image too large")
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Image too large"
+            )
 
         # Process image
         response = await agent.process_image(image=image_data, prompt=prompt)
@@ -621,15 +637,15 @@ async def process_image(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Image processing failed: {str(e)}",
-        )
+        ) from e
 
 
 @app.post("/agents/{agent_id}/process-audio", response_model=AgentResponse, tags=["Multimodal"])
 async def process_audio(
     agent_id: str,
-    audio: UploadFile = File(...),
+    audio: Annotated[UploadFile, File()],
     task: str = Form(default="transcribe"),
-):
+) -> AgentResponse:
     """Process audio with the agent."""
     if agent_id not in agent_store:
         raise HTTPException(
@@ -639,7 +655,7 @@ async def process_audio(
     agent = agent_store[agent_id]
 
     # Check if agent supports audio
-    if not hasattr(agent, "process_audio"):
+    if not isinstance(agent, MultimodalAgent):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="This agent does not support audio processing",
@@ -648,14 +664,25 @@ async def process_audio(
     try:
         # Validate content type and extension
         if audio.content_type:
-            if not any(audio.content_type.endswith(ext.strip()) for ext in settings.allowed_audio_types.split(",")):
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported audio content type")
-        if audio.filename and not any(audio.filename.lower().endswith(ext) for ext in settings.allowed_audio_extensions):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported audio file extension")
+            if not any(
+                audio.content_type.endswith(ext.strip())
+                for ext in settings.allowed_audio_types.split(",")
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported audio content type"
+                )
+        if audio.filename and not any(
+            audio.filename.lower().endswith(ext) for ext in settings.allowed_audio_extensions
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported audio file extension"
+            )
         # Read audio data
         audio_data = await audio.read()
         if len(audio_data) > settings.max_file_size_bytes:
-            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Audio too large")
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Audio too large"
+            )
 
         # Process audio
         response = await agent.process_audio(audio=audio_data, task=task)
@@ -666,7 +693,7 @@ async def process_audio(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Audio processing failed: {str(e)}",
-        )
+        ) from e
 
 
 @app.post(
@@ -674,10 +701,10 @@ async def process_audio(
 )
 async def process_multimodal(
     agent_id: str,
-    text: Optional[str] = Form(None),
-    image: Optional[UploadFile] = File(None),
-    audio: Optional[UploadFile] = File(None),
-):
+    text: str | None = Form(None),
+    image: Annotated[UploadFile | None, File()] = None,
+    audio: Annotated[UploadFile | None, File()] = None,
+) -> AgentResponse:
     """Process multimodal input with the agent."""
     if agent_id not in agent_store:
         raise HTTPException(
@@ -687,7 +714,7 @@ async def process_multimodal(
     agent = agent_store[agent_id]
 
     # Check if agent supports multimodal
-    if not hasattr(agent, "process_multimodal"):
+    if not isinstance(agent, MultimodalAgent):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="This agent does not support multimodal processing",
@@ -712,11 +739,11 @@ async def process_multimodal(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Multimodal processing failed: {str(e)}",
-        )
+        ) from e
 
 
 @app.post("/agents/{agent_id}/clear-memory", tags=["Agent Management"])
-async def clear_agent_memory(agent_id: str):
+async def clear_agent_memory(agent_id: str) -> dict[str, str]:
     """Clear an agent's memory."""
     if agent_id not in agent_store:
         raise HTTPException(
@@ -732,7 +759,7 @@ async def clear_agent_memory(agent_id: str):
 @app.post("/agents/{agent_id}/tools", tags=["Agent Management"])
 async def add_tool_to_agent(
     agent_id: str, tool_name: str = Form(...), tool_description: str = Form(...)
-):
+) -> dict[str, Any]:
     """Add a tool to an agent."""
     if agent_id not in agent_store:
         raise HTTPException(
@@ -747,7 +774,7 @@ async def add_tool_to_agent(
 
 
 @app.get("/agents/{agent_id}/tools", tags=["Agent Management"])
-async def get_agent_tools(agent_id: str):
+async def get_agent_tools(agent_id: str) -> dict[str, Any]:
     """Get tools available to an agent."""
     if agent_id not in agent_store:
         raise HTTPException(
@@ -767,7 +794,7 @@ async def get_agent_tools(agent_id: str):
 
 # Quick start endpoints
 @app.post("/quick-start/chat-gpt4", response_model=AgentResponse, tags=["Quick Start"])
-async def quick_chat_gpt4(message: str = Form(...)):
+async def quick_chat_gpt4(message: str = Form(...)) -> AgentResponse:
     """Quick chat with GPT-4."""
     # Create a temporary agent if not exists
     temp_agent_id = "quick-gpt4"
@@ -783,7 +810,7 @@ async def quick_chat_gpt4(message: str = Form(...)):
 
 
 @app.post("/quick-start/chat-gemini", response_model=AgentResponse, tags=["Quick Start"])
-async def quick_chat_gemini(message: str = Form(...)):
+async def quick_chat_gemini(message: str = Form(...)) -> AgentResponse:
     """Quick chat with Gemini."""
     # Create a temporary agent if not exists
     temp_agent_id = "quick-gemini"
@@ -799,7 +826,7 @@ async def quick_chat_gemini(message: str = Form(...)):
 
 
 @app.post("/quick-start/chat-claude", response_model=AgentResponse, tags=["Quick Start"])
-async def quick_chat_claude(message: str = Form(...)):
+async def quick_chat_claude(message: str = Form(...)) -> AgentResponse:
     """Quick chat with Claude."""
     # Create a temporary agent if not exists
     temp_agent_id = "quick-claude"

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -77,7 +77,7 @@ export default function PasswordChangeModal({
       });
       handleClose();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: 'Password Change Failed',
         description: error.message || 'Failed to change password',

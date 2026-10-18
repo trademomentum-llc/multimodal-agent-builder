@@ -8,17 +8,16 @@ import { auditLogger } from './auditLogger';
 import OpenAI from 'openai';
 import { nanoid } from 'nanoid';
 import {
-  Agent,
   MultimodalSession,
   MultimodalInteraction,
   MultimodalFile,
 } from '../../shared/schema';
 
-interface MultimodalInput {
+export interface MultimodalInput {
   text?: string;
   image?: string | Buffer; // base64 or buffer
   audio?: string | Buffer; // base64 or buffer
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 interface AgentResponse {
@@ -34,7 +33,7 @@ interface AgentResponse {
   modalities?: string[];
   processingTime?: number;
   cost?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   state?: string;
   error?: string;
 }
@@ -113,7 +112,7 @@ export class MultimodalAgentService {
       }
 
       // Create session if not provided
-      let session: MultimodalSession;
+      let session: MultimodalSession | undefined;
       if (sessionId) {
         session =
           this.activeSessions.get(sessionId) ||
@@ -200,7 +199,7 @@ export class MultimodalAgentService {
 
       // Update session
       await storage.updateMultimodalSession(session.id, {
-        totalInteractions: session.totalInteractions + 1,
+        totalInteractions: (session.totalInteractions ?? 0) + 1,
         lastInteraction: new Date(),
         modalities: [
           ...new Set([...((session.modalities as string[]) || []), 'text']),
@@ -283,7 +282,7 @@ export class MultimodalAgentService {
       }
 
       // Create session if not provided
-      let session: MultimodalSession;
+      let session: MultimodalSession | undefined;
       if (sessionId) {
         session =
           this.activeSessions.get(sessionId) ||
@@ -382,7 +381,7 @@ export class MultimodalAgentService {
 
       // Update session
       await storage.updateMultimodalSession(session.id, {
-        totalInteractions: session.totalInteractions + 1,
+        totalInteractions: (session.totalInteractions ?? 0) + 1,
         lastInteraction: new Date(),
         modalities: [
           ...new Set([
@@ -474,7 +473,7 @@ export class MultimodalAgentService {
       }
 
       // Create session if not provided
-      let session: MultimodalSession;
+      let session: MultimodalSession | undefined;
       if (sessionId) {
         session =
           this.activeSessions.get(sessionId) ||
@@ -489,12 +488,14 @@ export class MultimodalAgentService {
 
       // Use OpenAI Whisper for transcription
       const formData = new FormData();
-      formData.append('file', new Blob([audio]), 'audio.wav');
+      formData.append('file', new Blob([new Uint8Array(audio)]), 'audio.wav');
       formData.append('model', 'whisper-1');
       formData.append('language', agent.audioLanguage || 'en');
 
       const transcription = await this.openai.audio.transcriptions.create({
-        file: new File([audio], 'audio.wav', { type: 'audio/wav' }),
+        file: new File([new Uint8Array(audio)], 'audio.wav', {
+          type: 'audio/wav',
+        }),
         model: 'whisper-1',
         language: agent.audioLanguage || 'en',
       });
@@ -544,7 +545,7 @@ export class MultimodalAgentService {
 
       // Update session
       await storage.updateMultimodalSession(session.id, {
-        totalInteractions: session.totalInteractions + 1,
+        totalInteractions: (session.totalInteractions ?? 0) + 1,
         lastInteraction: new Date(),
         modalities: [
           ...new Set([
@@ -624,7 +625,7 @@ export class MultimodalAgentService {
       }
 
       // Create session if not provided
-      let session: MultimodalSession;
+      let session: MultimodalSession | undefined;
       if (sessionId) {
         session =
           this.activeSessions.get(sessionId) ||
@@ -637,7 +638,11 @@ export class MultimodalAgentService {
         throw new Error('Failed to create or retrieve session');
       }
 
-      const processedInputs: any = { text: inputs.text };
+      const processedInputs: {
+        text?: string;
+        imageBase64?: string;
+        audioTranscription?: string;
+      } = { text: inputs.text };
       const usedModalities: string[] = ['text'];
       const files: MultimodalFile[] = [];
 
@@ -676,7 +681,9 @@ export class MultimodalAgentService {
 
         // Transcribe audio
         const transcription = await this.openai.audio.transcriptions.create({
-          file: new File([audioBuffer], 'audio.wav', { type: 'audio/wav' }),
+          file: new File([new Uint8Array(audioBuffer)], 'audio.wav', {
+            type: 'audio/wav',
+          }),
           model: 'whisper-1',
           language: agent.audioLanguage || 'en',
         });
@@ -724,7 +731,8 @@ export class MultimodalAgentService {
         });
       }
 
-      const messageContent: any[] = [{ type: 'text', text: prompt }];
+      const messageContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] =
+        [{ type: 'text', text: prompt }];
 
       if (processedInputs.imageBase64) {
         messageContent.push({
@@ -789,7 +797,7 @@ export class MultimodalAgentService {
 
       // Update session
       await storage.updateMultimodalSession(session.id, {
-        totalInteractions: session.totalInteractions + 1,
+        totalInteractions: (session.totalInteractions ?? 0) + 1,
         lastInteraction: new Date(),
         modalities: [
           ...new Set([

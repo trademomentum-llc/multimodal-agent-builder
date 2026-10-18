@@ -7,7 +7,6 @@ import StatsGrid from '@/components/Dashboard/StatsGrid';
 import ActivityFeed from '@/components/Dashboard/ActivityFeed';
 import SecurityStatus from '@/components/Dashboard/SecurityStatus';
 import QuickActions from '@/components/Dashboard/QuickActions';
-import { isUnauthorizedError } from '@/lib/authUtils';
 
 export default function Dashboard() {
   const { isAuthenticated, isLoading } = useAuth();

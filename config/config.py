@@ -1,7 +1,7 @@
 """Configuration management using Pydantic Settings."""
 
 from functools import lru_cache
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -143,7 +143,7 @@ class Settings(BaseSettings):
         """Check if running in development environment."""
         return self.app_env == "development"
 
-    def get_llm_config(self, provider: str) -> dict:
+    def get_llm_config(self, provider: str) -> dict[str, Any]:
         """Get configuration for a specific LLM provider.
 
         Args:
@@ -178,7 +178,7 @@ class Settings(BaseSettings):
 
         return configs[provider]
 
-    def validate_api_keys(self) -> dict:
+    def validate_api_keys(self) -> dict[str, bool]:
         """Validate which API keys are configured.
 
         Returns:

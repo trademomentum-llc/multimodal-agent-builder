@@ -157,7 +157,7 @@ export default function Sidebar() {
               const isActive = location === item.href;
               return (
                 <Link key={item.name} href={item.href}>
-                  {(props: any) => (
+                  {(props: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
                     <a
                       {...props}
                       className={cn(
@@ -235,7 +235,7 @@ export default function Sidebar() {
             })}
 
             <Link href="/settings">
-              {(props: any) => (
+              {(props: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
                 <a
                   {...props}
                   className={cn(
@@ -292,14 +292,14 @@ export default function Sidebar() {
                   isCollapsed ? 'w-10 h-10' : 'w-8 h-8',
                 )}
               >
-                {(user as any)?.email ? (
+                {user?.email ? (
                   <span
                     className={cn(
                       'font-medium text-white transition-all duration-300',
                       isCollapsed ? 'text-sm' : 'text-xs',
                     )}
                   >
-                    {(user as any).email.charAt(0).toUpperCase()}
+                    {user.email.charAt(0).toUpperCase()}
                   </span>
                 ) : (
                   <User
@@ -321,7 +321,7 @@ export default function Sidebar() {
                 )}
               >
                 <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                  {(user as any)?.email || 'User'}
+                  {user?.email || 'User'}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                   Admin • Online

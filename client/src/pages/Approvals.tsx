@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Approval } from '@/types/task';
 import { apiRequest } from '@/lib/queryClient';
 import { isUnauthorizedError } from '@/lib/authUtils';
-import { RefreshCw, CheckCheck, X } from 'lucide-react';
+import { RefreshCw, CheckCheck } from 'lucide-react';
 
 type ApprovalStatus = 'all' | 'pending' | 'approved' | 'rejected';
 

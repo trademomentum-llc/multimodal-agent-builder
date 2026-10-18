@@ -9,17 +9,6 @@ interface ThreatPattern {
   scoreMultiplier: number;
 }
 
-interface BlacklistEntry {
-  ipAddress: string;
-  reason: string;
-  threatLevel: 'low' | 'medium' | 'high' | 'critical';
-  attemptCount: number;
-  blockedUntil: Date;
-  userAgent?: string;
-  requestPatterns?: any[];
-  threatIntelligence?: any;
-}
-
 export class ThreatIntelligenceService {
   private readonly maxLoginAttempts = 5;
   private readonly maxApiAttempts = 50;
@@ -60,7 +49,7 @@ export class ThreatIntelligenceService {
 
     // Command injection
     {
-      pattern: /(\||\&\&|\;|\$\(|\`|system\(|exec\(|eval\()/i,
+      pattern: /(\||&&|;|\$\(|`|system\(|exec\(|eval\()/i,
       description: 'Command injection attempt',
       threatLevel: 'critical',
       scoreMultiplier: 4,
@@ -254,14 +243,17 @@ export class ThreatIntelligenceService {
           blockedUntil: newBlockedUntil,
           requestPatterns: threatAnalysis?.patterns || [],
           threatIntelligence: {
-            ...((existingEntry.threatIntelligence as any) || {}),
+            ...((existingEntry.threatIntelligence ?? {}) as Record<
+              string,
+              unknown
+            >),
             lastThreatScore: threatAnalysis?.score || 0,
             escalationCount: newAttemptCount,
             analysisTimestamp: new Date().toISOString(),
           },
         });
 
-        await auditLogger.log(
+        await auditLogger.logWithMetadata(
           null,
           'security.blacklist.escalated',
           'security',
@@ -278,10 +270,7 @@ export class ThreatIntelligenceService {
         // Create new blacklist entry
         const threatLevel =
           (threatAnalysis?.threatLevel as
-            | 'low'
-            | 'medium'
-            | 'high'
-            | 'critical') || 'medium';
+            'low' | 'medium' | 'high' | 'critical') || 'medium';
         const blockDuration = this.calculateBlockDuration(threatLevel, 1);
         const blockedUntil = new Date(Date.now() + blockDuration * 60 * 1000);
 
@@ -306,7 +295,7 @@ export class ThreatIntelligenceService {
           isActive: true,
         });
 
-        await auditLogger.log(
+        await auditLogger.logWithMetadata(
           null,
           'security.blacklist.added',
           'security',
@@ -339,7 +328,7 @@ export class ThreatIntelligenceService {
     }
 
     // Log the failed attempt
-    await auditLogger.log(
+    await auditLogger.logWithMetadata(
       userId,
       'auth.login.failed',
       'security',
@@ -365,7 +354,7 @@ export class ThreatIntelligenceService {
 
     await this.addToBlacklist(ipAddress, 'api_abuse', req, threatAnalysis);
 
-    await auditLogger.log(
+    await auditLogger.logWithMetadata(
       null,
       'security.api.abuse',
       'security',
@@ -384,7 +373,7 @@ export class ThreatIntelligenceService {
     if (threatAnalysis.score > 2 || threatAnalysis.threatLevel === 'high') {
       await this.addToBlacklist(ipAddress, 'curl_abuse', req, threatAnalysis);
 
-      await auditLogger.log(
+      await auditLogger.logWithMetadata(
         null,
         'security.curl.abuse',
         'security',
@@ -410,7 +399,7 @@ export class ThreatIntelligenceService {
     try {
       await storage.deactivateBlacklistEntries(ipAddress, reviewedBy, reason);
 
-      await auditLogger.log(
+      await auditLogger.logWithMetadata(
         reviewedBy,
         'security.blacklist.removed',
         'security',
@@ -427,7 +416,7 @@ export class ThreatIntelligenceService {
   /**
    * Get blacklist statistics for security dashboard
    */
-  public async getBlacklistStats(): Promise<any> {
+  public async getBlacklistStats(): Promise<unknown> {
     try {
       const stats = await storage.getBlacklistStats();
       return stats;

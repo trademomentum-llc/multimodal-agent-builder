@@ -2,14 +2,15 @@
 
 import base64
 import io
+from collections.abc import Callable
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Any
 
 import numpy as np
-from PIL import Image, ImageOps, ImageEnhance, ImageFilter
+from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 
+from src.utils.logging_utils import handle_exception, logger
 from src.utils.narrative_utils import NarrativeEnhancer
-from src.utils.logging_utils import logger, handle_exception
 
 
 class ImageProcessor:
@@ -18,11 +19,12 @@ class ImageProcessor:
     SUPPORTED_FORMATS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".tiff"}
     MAX_SIZE = (1920, 1080)
 
-    def __init__(self, enable_narratives: bool = False):
+    def __init__(self, enable_narratives: bool = False) -> None:
         """Initialize image processor.
 
         Args:
             enable_narratives: Enable Localized Narratives enhancement
+
         """
         self.narrative_enhancer = None
         if enable_narratives:
@@ -33,7 +35,7 @@ class ImageProcessor:
                 logger.warning(f"Could not initialize narrative enhancer: {e}")
 
     @staticmethod
-    def load_image(image_input: Union[str, bytes, Image.Image, np.ndarray]) -> Image.Image:
+    def load_image(image_input: str | bytes | Image.Image | np.ndarray) -> Image.Image:
         """Load image from various input types."""
         try:
             if isinstance(image_input, str):
@@ -63,7 +65,7 @@ class ImageProcessor:
     @staticmethod
     def resize_image(
         image: Image.Image,
-        max_size: Optional[Tuple[int, int]] = None,
+        max_size: tuple[int, int] | None = None,
         maintain_aspect_ratio: bool = True,
     ) -> Image.Image:
         """Resize image to fit within max dimensions."""
@@ -79,7 +81,7 @@ class ImageProcessor:
     @staticmethod
     def optimize_for_api(
         image: Image.Image,
-        max_size: Optional[Tuple[int, int]] = None,
+        max_size: tuple[int, int] | None = None,
         quality: int = 85,
         format: str = "JPEG",
     ) -> bytes:
@@ -104,7 +106,7 @@ class ImageProcessor:
 
     @staticmethod
     def to_base64(
-        image: Union[Image.Image, bytes], format: str = "JPEG", add_data_url: bool = True
+        image: Image.Image | bytes, format: str = "JPEG", add_data_url: bool = True
     ) -> str:
         """Convert image to base64 string."""
         if isinstance(image, Image.Image):
@@ -132,8 +134,8 @@ class ImageProcessor:
         return Image.open(io.BytesIO(image_bytes))
 
     def analyze_with_narratives(
-        self, image: Union[str, Image.Image], image_id: Optional[str] = None
-    ) -> dict:
+        self, image: str | Image.Image, image_id: str | None = None
+    ) -> dict[str, Any]:
         """Analyze image with narrative enhancement if available.
 
         Args:
@@ -142,6 +144,7 @@ class ImageProcessor:
 
         Returns:
             Analysis results
+
         """
         # Load image if path
         if isinstance(image, str):
@@ -152,7 +155,7 @@ class ImageProcessor:
             img = image
 
         # Basic analysis
-        analysis = {
+        analysis: dict[str, Any] = {
             "size": img.size,
             "mode": img.mode,
             "format": img.format,
@@ -173,7 +176,7 @@ class ImageProcessor:
         return analysis
 
     @staticmethod
-    def create_thumbnail(image: Image.Image, size: Tuple[int, int] = (256, 256)) -> Image.Image:
+    def create_thumbnail(image: Image.Image, size: tuple[int, int] = (256, 256)) -> Image.Image:
         """Create a thumbnail of the image."""
         thumbnail = image.copy()
         thumbnail.thumbnail(size, Image.Resampling.LANCZOS)
@@ -182,12 +185,12 @@ class ImageProcessor:
     @staticmethod
     def apply_transforms(
         image: Image.Image,
-        rotate: Optional[int] = None,
+        rotate: int | None = None,
         flip_horizontal: bool = False,
         flip_vertical: bool = False,
-        brightness: Optional[float] = None,
-        contrast: Optional[float] = None,
-        blur: Optional[float] = None,
+        brightness: float | None = None,
+        contrast: float | None = None,
+        blur: float | None = None,
         sharpen: bool = False,
     ) -> Image.Image:
         """Apply various transformations to an image."""
@@ -202,8 +205,7 @@ class ImageProcessor:
             result = ImageOps.flip(result)
 
         if brightness is not None:
-            enhancer = ImageEnhance.Brightness(result)
-            result = enhancer.enhance(brightness)
+            result = ImageEnhance.Brightness(result).enhance(brightness)
 
         if contrast is not None:
             enhancer = ImageEnhance.Contrast(result)
@@ -218,9 +220,9 @@ class ImageProcessor:
         return result
 
     @staticmethod
-    def extract_metadata(image: Image.Image) -> dict:
+    def extract_metadata(image: Image.Image) -> dict[str, Any]:
         """Extract comprehensive image metadata."""
-        metadata = {
+        metadata: dict[str, Any] = {
             "format": image.format,
             "mode": image.mode,
             "size": image.size,
@@ -257,7 +259,9 @@ class ImageProcessor:
 
         return image
 
-    def batch_process(self, images: list, operation: callable, **kwargs) -> list:
+    def batch_process(
+        self, images: list[Any], operation: Callable[..., Any], **kwargs: Any
+    ) -> list[Any]:
         """Apply an operation to multiple images."""
         results = []
         for idx, img_input in enumerate(images):
@@ -274,7 +278,7 @@ class ImageProcessor:
 
 
 # Convenience functions
-def load_and_optimize(image_path: str, max_size: Optional[Tuple[int, int]] = None) -> bytes:
+def load_and_optimize(image_path: str, max_size: tuple[int, int] | None = None) -> bytes:
     """Load and optimize an image for API use."""
     processor = ImageProcessor()
     image = processor.load_image(image_path)
@@ -299,7 +303,7 @@ def validate_image(image_path: str) -> bool:
 
         Image.open(path).verify()
         return True
-    except:
+    except Exception:
         return False
 
 

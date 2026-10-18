@@ -6,8 +6,8 @@ export interface Agent {
   userId?: string;
   status: 'inactive' | 'active' | 'error' | 'paused';
   priority: 'low' | 'medium' | 'high';
-  configuration?: Record<string, any>;
-  securityConfig?: Record<string, any>;
+  configuration?: Record<string, unknown>;
+  securityConfig?: Record<string, unknown>;
   lastActivity?: Date;
   createdAt?: Date;
   updatedAt?: Date;
@@ -30,7 +30,7 @@ export interface CreateAgentRequest {
   description?: string;
   typeId?: number;
   priority: 'low' | 'medium' | 'high';
-  configuration?: Record<string, any>;
+  configuration?: Record<string, unknown>;
   securityConfig?: {
     approvalRequired?: boolean;
     encryption?: boolean;

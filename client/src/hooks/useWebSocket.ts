@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 interface WebSocketMessage {
   type: string;
-  data?: any;
+  data?: unknown;
   timestamp?: number;
 }
 

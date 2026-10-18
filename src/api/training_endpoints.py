@@ -1,18 +1,17 @@
 """Training API endpoints for recursive loop closure and adaptive learning."""
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
-from pydantic import BaseModel, Field
-from typing import Any, Dict, List, Optional
-import asyncio
 from datetime import datetime
+from typing import Any
 
+from fastapi import APIRouter, BackgroundTasks, HTTPException
+from pydantic import BaseModel, Field
+
+from src.utils.logging_utils import logger
 from src.utils.training_utils import (
     AdaptiveTrainingManager,
     RecursiveLoopClosureLedger,
     create_enhanced_training_pipeline,
 )
-from src.utils.logging_utils import logger
-
 
 # Router for training endpoints
 router = APIRouter(prefix="/training", tags=["training"])
@@ -35,7 +34,7 @@ class LoopClosureRequest(BaseModel):
     pattern: str = Field(..., description="Pattern identified")
     structure: str = Field(..., description="Structure used")
     explanation: str = Field(..., description="Why the loop was closed")
-    topic: Optional[str] = Field(default="", description="Topic description")
+    topic: str | None = Field(default="", description="Topic description")
 
 
 class TrainingStatus(BaseModel):
@@ -43,11 +42,11 @@ class TrainingStatus(BaseModel):
 
     status: str
     agent_name: str
-    current_epoch: Optional[int] = None
-    total_epochs: Optional[int] = None
+    current_epoch: int | None = None
+    total_epochs: int | None = None
     loops_closed: int = 0
     patterns_found: int = 0
-    accuracy: Optional[float] = None
+    accuracy: float | None = None
     message: str
 
 
@@ -55,13 +54,13 @@ class LedgerResponse(BaseModel):
     """Response containing ledger information."""
 
     total_loops: int
-    recent_loops: List[Dict[str, Any]]
+    recent_loops: list[dict[str, Any]]
     closure_rate: float
 
 
 # Global training managers (in production, use a database)
-training_managers: Dict[str, AdaptiveTrainingManager] = {}
-training_status: Dict[str, Dict[str, Any]] = {}
+training_managers: dict[str, AdaptiveTrainingManager] = {}
+training_status: dict[str, dict[str, Any]] = {}
 
 
 @router.post("/start", response_model=TrainingStatus)
@@ -76,6 +75,7 @@ async def start_training(
 
     Returns:
         Initial training status
+
     """
     try:
         # Check if already training
@@ -119,10 +119,12 @@ async def start_training(
 
     except Exception as e:
         logger.error(f"Failed to start training: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-async def run_training_async(agent_name: str, dataset_type: str, epochs: int, enable_closure: bool):
+async def run_training_async(
+    agent_name: str, dataset_type: str, epochs: int, enable_closure: bool
+) -> None:
     """Run training asynchronously.
 
     Args:
@@ -130,6 +132,7 @@ async def run_training_async(agent_name: str, dataset_type: str, epochs: int, en
         dataset_type: Type of dataset
         epochs: Number of epochs
         enable_closure: Whether to enable closure detection
+
     """
     try:
         manager = training_managers[agent_name]
@@ -187,6 +190,7 @@ async def get_training_status(agent_name: str) -> TrainingStatus:
 
     Returns:
         Current training status
+
     """
     if agent_name not in training_status:
         raise HTTPException(status_code=404, detail=f"No training found for agent {agent_name}")
@@ -205,8 +209,8 @@ async def get_training_status(agent_name: str) -> TrainingStatus:
     )
 
 
-@router.post("/closure", response_model=Dict[str, Any])
-async def log_loop_closure(request: LoopClosureRequest) -> Dict[str, Any]:
+@router.post("/closure", response_model=dict[str, Any])
+async def log_loop_closure(request: LoopClosureRequest) -> dict[str, Any]:
     """Manually log a recursive loop closure.
 
     Args:
@@ -214,6 +218,7 @@ async def log_loop_closure(request: LoopClosureRequest) -> Dict[str, Any]:
 
     Returns:
         Closure confirmation
+
     """
     try:
         # Create or get global ledger
@@ -240,7 +245,7 @@ async def log_loop_closure(request: LoopClosureRequest) -> Dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Failed to log closure: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/ledger/{agent_name}", response_model=LedgerResponse)
@@ -252,6 +257,7 @@ async def get_training_ledger(agent_name: str) -> LedgerResponse:
 
     Returns:
         Ledger information
+
     """
     if agent_name not in training_managers:
         raise HTTPException(
@@ -274,8 +280,8 @@ async def get_training_ledger(agent_name: str) -> LedgerResponse:
     )
 
 
-@router.get("/summary/{agent_name}", response_model=Dict[str, Any])
-async def get_training_summary(agent_name: str) -> Dict[str, Any]:
+@router.get("/summary/{agent_name}", response_model=dict[str, Any])
+async def get_training_summary(agent_name: str) -> dict[str, Any]:
     """Get comprehensive training summary for an agent.
 
     Args:
@@ -283,6 +289,7 @@ async def get_training_summary(agent_name: str) -> Dict[str, Any]:
 
     Returns:
         Training summary with metrics
+
     """
     if agent_name not in training_managers:
         raise HTTPException(
@@ -300,7 +307,7 @@ async def get_training_summary(agent_name: str) -> Dict[str, Any]:
 
 
 @router.delete("/reset/{agent_name}")
-async def reset_training(agent_name: str) -> Dict[str, str]:
+async def reset_training(agent_name: str) -> dict[str, str]:
     """Reset training for an agent.
 
     Args:
@@ -308,6 +315,7 @@ async def reset_training(agent_name: str) -> Dict[str, str]:
 
     Returns:
         Confirmation message
+
     """
     # Remove from managers and status
     if agent_name in training_managers:
@@ -319,10 +327,10 @@ async def reset_training(agent_name: str) -> Dict[str, str]:
     return {"message": f"Training reset for agent {agent_name}", "agent_name": agent_name}
 
 
-@router.post("/pipeline/{agent_name}", response_model=Dict[str, Any])
+@router.post("/pipeline/{agent_name}", response_model=dict[str, Any])
 async def create_training_pipeline(
     agent_name: str, dataset_type: str = "open_images"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create and run a complete training pipeline.
 
     Args:
@@ -331,6 +339,7 @@ async def create_training_pipeline(
 
     Returns:
         Pipeline results
+
     """
     try:
         # Create enhanced pipeline
@@ -353,15 +362,16 @@ async def create_training_pipeline(
 
     except Exception as e:
         logger.error(f"Pipeline failed for {agent_name}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/datasets", response_model=Dict[str, Any])
-async def list_available_datasets() -> Dict[str, Any]:
+@router.get("/datasets", response_model=dict[str, Any])
+async def list_available_datasets() -> dict[str, Any]:
     """List available training datasets.
 
     Returns:
         Available datasets and their information
+
     """
     from pathlib import Path
 
@@ -383,7 +393,9 @@ async def list_available_datasets() -> Dict[str, Any]:
         if train_path.exists():
             datasets["open_images"]["training_files"] = [
                 f.name for f in train_path.glob("*.jsonl")
-            ][:5]  # Limit to 5 for display
+            ][
+                :5
+            ]  # Limit to 5 for display
 
         # Validation files
         val_path = base_path / "ML-Validation"

@@ -5,7 +5,6 @@ import hmac
 import secrets
 import time
 from dataclasses import dataclass, field
-from typing import Dict, Optional
 
 
 def _hash_secret(secret: str) -> str:
@@ -21,9 +20,9 @@ class ApiKeyRecord:
     hashed_secret: str
     name: str
     created_at: float
-    expires_at: Optional[float] = None
+    expires_at: float | None = None
     active: bool = True
-    metadata: Dict[str, str] = field(default_factory=dict)
+    metadata: dict[str, str] = field(default_factory=dict)
 
     @property
     def is_expired(self) -> bool:
@@ -31,10 +30,12 @@ class ApiKeyRecord:
 
 
 # In-memory key store; replace with a database/Redis in production deployments.
-api_keys_store: Dict[str, ApiKeyRecord] = {}
+api_keys_store: dict[str, ApiKeyRecord] = {}
 
 
-def issue_api_key(name: str, ttl_seconds: Optional[int] = None, metadata: Optional[Dict[str, str]] = None) -> str:
+def issue_api_key(
+    name: str, ttl_seconds: int | None = None, metadata: dict[str, str] | None = None
+) -> str:
     """Create and register a new API key.
 
     Returns the token in the format <key_id>.<secret>. Only the hash is stored.
@@ -84,7 +85,7 @@ def verify_api_key_token(token: str) -> ApiKeyRecord:
     return record
 
 
-def list_api_keys(include_inactive: bool = False) -> Dict[str, ApiKeyRecord]:
+def list_api_keys(include_inactive: bool = False) -> dict[str, ApiKeyRecord]:
     """Return a filtered view of stored keys."""
     if include_inactive:
         return dict(api_keys_store)

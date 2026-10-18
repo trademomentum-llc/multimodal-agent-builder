@@ -50,11 +50,7 @@ export default function AgentFactory() {
     enabled: isAuthenticated,
   });
 
-  const {
-    data: agents,
-    isLoading: agentsLoading,
-    error: agentsError,
-  } = useQuery<Agent[]>({
+  const { data: agents } = useQuery<Agent[]>({
     queryKey: ['/api/agents'],
     enabled: isAuthenticated,
   });

@@ -449,13 +449,14 @@ class TwoFactorAuthService {
     twoFactorVerified?: boolean;
   } {
     try {
-      const decoded = jwt.verify(token, this.jwtSecret) as any;
+      const decoded = jwt.verify(token, this.jwtSecret);
+      if (typeof decoded === 'string') return { valid: false };
       return {
         valid: true,
         userId: decoded.userId,
         twoFactorVerified: decoded.twoFactorVerified,
       };
-    } catch (error) {
+    } catch {
       return { valid: false };
     }
   }

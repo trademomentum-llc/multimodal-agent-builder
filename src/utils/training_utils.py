@@ -1,15 +1,24 @@
 """Training utilities with recursive loop closure and dataset management."""
 
 import json
-import os
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
+from typing import Any, TypedDict
+
 import pandas as pd
 
-from src.utils.narrative_utils import NarrativeEnhancer
 from src.utils.logging_utils import logger, setup_logger
+from src.utils.narrative_utils import NarrativeEnhancer
+
+
+class TrainingMetrics(TypedDict):
+    """Counters accumulated across a closure-aware training run."""
+
+    iterations: int
+    closures: int
+    patterns_found: list[str]
+    hypotheses_tested: list[str]
 
 
 @dataclass
@@ -22,9 +31,9 @@ class RecursiveLoop:
     pattern: str
     structure: str
     why_closed: str
-    timestamp: str = None
+    timestamp: str | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.timestamp:
             self.timestamp = datetime.utcnow().isoformat()
 
@@ -32,14 +41,15 @@ class RecursiveLoop:
 class RecursiveLoopClosureLedger:
     """Manages recursive loop closure tracking inspired by living_system.ts."""
 
-    def __init__(self, ledger_file: Optional[str] = None):
+    def __init__(self, ledger_file: str | None = None) -> None:
         """Initialize the ledger.
 
         Args:
             ledger_file: Optional path to persist ledger
+
         """
         self.ledger_file = ledger_file
-        self.closed_loops: List[RecursiveLoop] = []
+        self.closed_loops: list[RecursiveLoop] = []
         self.closure_recognition_agent = ClosureRecognitionAgent()
 
         if ledger_file and Path(ledger_file).exists():
@@ -59,6 +69,7 @@ class RecursiveLoopClosureLedger:
 
         Returns:
             True if closure was detected and logged
+
         """
         # Use closure recognition agent to validate
         if self.closure_recognition_agent.detect_closure(hypothesis, pattern, structure):
@@ -90,6 +101,7 @@ class RecursiveLoopClosureLedger:
 
         Returns:
             DataFrame of closed loops
+
         """
         data = [
             {
@@ -106,14 +118,14 @@ class RecursiveLoopClosureLedger:
 
         return pd.DataFrame(data)
 
-    def save_ledger(self):
+    def save_ledger(self) -> None:
         """Save ledger to file."""
         if self.ledger_file:
             df = self.get_ledger_df()
             df.to_csv(self.ledger_file, index=False)
             logger.info(f"Saved ledger to {self.ledger_file}")
 
-    def load_ledger(self):
+    def load_ledger(self) -> None:
         """Load ledger from file."""
         if self.ledger_file and Path(self.ledger_file).exists():
             df = pd.read_csv(self.ledger_file)
@@ -137,9 +149,9 @@ class RecursiveLoopClosureLedger:
 class ClosureRecognitionAgent:
     """Agent for recognizing loop closure patterns (Python version of TypeScript class)."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the closure recognition agent."""
-        self.closed_loops = []
+        self.closed_loops: list[dict[str, str]] = []
         self.logger = setup_logger("closure_agent")
 
     def detect_closure(self, hypothesis: str, pattern: str, structure: str) -> bool:
@@ -152,13 +164,14 @@ class ClosureRecognitionAgent:
 
         Returns:
             True if closure is detected
+
         """
         self.logger.debug(
             f"Attempting closure detection: h={hypothesis}, p={pattern}, s={structure}"
         )
 
         # Validate inputs
-        valid = all([isinstance(v, str) and v.strip() for v in [hypothesis, pattern, structure]])
+        valid = all(isinstance(v, str) and v.strip() for v in [hypothesis, pattern, structure])
 
         if valid:
             self.closed_loops.append(
@@ -170,11 +183,12 @@ class ClosureRecognitionAgent:
         self.logger.warning("Closure not detected - invalid parameters")
         return False
 
-    def report(self) -> List[Dict[str, str]]:
+    def report(self) -> list[dict[str, str]]:
         """Report all closed loops.
 
         Returns:
             List of closed loops
+
         """
         return self.closed_loops
 
@@ -187,13 +201,14 @@ class AdaptiveTrainingManager:
         train_path: str = "train-test-validate/ML-Training",
         test_path: str = "train-test-validate/ML-Testing",
         val_path: str = "train-test-validate/ML-Validation",
-    ):
+    ) -> None:
         """Initialize training manager.
 
         Args:
             train_path: Path to training data
             test_path: Path to test data
             val_path: Path to validation data
+
         """
         self.train_path = Path(train_path)
         self.test_path = Path(test_path)
@@ -206,14 +221,14 @@ class AdaptiveTrainingManager:
         self.narrative_enhancer = NarrativeEnhancer()
 
         # Track training metrics
-        self.training_metrics = {
+        self.training_metrics: TrainingMetrics = {
             "iterations": 0,
             "closures": 0,
             "patterns_found": [],
             "hypotheses_tested": [],
         }
 
-    def load_training_data(self, dataset_type: str = "open_images") -> List[Dict]:
+    def load_training_data(self, dataset_type: str = "open_images") -> list[dict[str, Any]]:
         """Load training data from files.
 
         Args:
@@ -221,6 +236,7 @@ class AdaptiveTrainingManager:
 
         Returns:
             List of training examples
+
         """
         training_data = []
 
@@ -231,7 +247,7 @@ class AdaptiveTrainingManager:
             for file_path in train_files[:1]:  # Limit for demo
                 logger.info(f"Loading training data from {file_path.name}")
 
-                with open(file_path, "r") as f:
+                with open(file_path) as f:
                     for idx, line in enumerate(f):
                         if idx >= 100:  # Limit for demo
                             break
@@ -245,8 +261,8 @@ class AdaptiveTrainingManager:
         return training_data
 
     def create_training_loop(
-        self, model_name: str, training_data: List[Dict], epochs: int = 3
-    ) -> Dict[str, Any]:
+        self, model_name: str, training_data: list[dict[str, Any]], epochs: int = 3
+    ) -> dict[str, Any]:
         """Create an adaptive training loop with closure detection.
 
         Args:
@@ -256,8 +272,14 @@ class AdaptiveTrainingManager:
 
         Returns:
             Training results
+
         """
-        results = {"model": model_name, "epochs": epochs, "loops_closed": [], "final_metrics": {}}
+        results: dict[str, Any] = {
+            "model": model_name,
+            "epochs": epochs,
+            "loops_closed": [],
+            "final_metrics": {},
+        }
 
         for epoch in range(epochs):
             logger.info(f"Starting epoch {epoch + 1}/{epochs}")
@@ -290,7 +312,7 @@ class AdaptiveTrainingManager:
         results["final_metrics"] = self.training_metrics
         return results
 
-    def _simulate_training(self, training_data: List[Dict], epoch: int) -> List[str]:
+    def _simulate_training(self, training_data: list[dict[str, Any]], epoch: int) -> list[str]:
         """Simulate training process.
 
         Args:
@@ -299,6 +321,7 @@ class AdaptiveTrainingManager:
 
         Returns:
             List of patterns found
+
         """
         patterns = []
 
@@ -313,8 +336,8 @@ class AdaptiveTrainingManager:
         return patterns
 
     def validate_with_closure(
-        self, model_name: str, validation_data: Optional[List[Dict]] = None
-    ) -> Dict[str, Any]:
+        self, model_name: str, validation_data: list[dict[str, Any]] | None = None
+    ) -> dict[str, Any]:
         """Validate model with recursive closure checking.
 
         Args:
@@ -323,6 +346,7 @@ class AdaptiveTrainingManager:
 
         Returns:
             Validation results
+
         """
         # Load validation data if not provided
         if validation_data is None:
@@ -330,18 +354,18 @@ class AdaptiveTrainingManager:
             validation_data = []
 
             for file_path in val_files[:1]:
-                with open(file_path, "r") as f:
+                with open(file_path) as f:
                     for idx, line in enumerate(f):
                         if idx >= 50:  # Limit for demo
                             break
                         try:
                             validation_data.append(json.loads(line))
-                        except:
+                        except json.JSONDecodeError:
                             continue
 
         # Validate and check for closure
         hypothesis = f"Model {model_name} generalizes to validation set"
-        pattern = f"Validation accuracy patterns"
+        pattern = "Validation accuracy patterns"
         structure = "Validation loop structure"
 
         # Simulate validation metrics
@@ -364,11 +388,12 @@ class AdaptiveTrainingManager:
             "closure_achieved": accuracy > 0.9,
         }
 
-    def get_training_summary(self) -> Dict[str, Any]:
+    def get_training_summary(self) -> dict[str, Any]:
         """Get comprehensive training summary.
 
         Returns:
             Training summary with metrics and closures
+
         """
         return {
             "total_iterations": self.training_metrics["iterations"],
@@ -394,6 +419,7 @@ def create_enhanced_training_pipeline(
 
     Returns:
         Configured training manager
+
     """
     logger.info(f"Creating enhanced training pipeline for {agent_name}")
 

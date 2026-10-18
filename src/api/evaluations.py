@@ -2,7 +2,6 @@
 
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -16,8 +15,8 @@ class EvaluationRequest(BaseModel):
     """Request to evaluate an agent against a dataset or prompt set."""
 
     agent_id: str = Field(..., description="Target agent identifier")
-    dataset: Optional[str] = Field(default=None, description="Dataset name or URI")
-    objectives: List[str] = Field(default_factory=list, description="Goals to score")
+    dataset: str | None = Field(default=None, description="Dataset name or URI")
+    objectives: list[str] = Field(default_factory=list, description="Goals to score")
     max_examples: int = Field(default=20, ge=1, le=500, description="Cap number of samples")
 
 
@@ -26,7 +25,7 @@ class SanitizeRequest(BaseModel):
 
     agent_id: str
     content: str = Field(..., description="Content to sanitize or screen")
-    ruleset: Optional[str] = Field(default="default", description="Safety ruleset identifier")
+    ruleset: str | None = Field(default="default", description="Safety ruleset identifier")
 
 
 class EvaluationResult(BaseModel):
@@ -34,10 +33,10 @@ class EvaluationResult(BaseModel):
 
     id: str
     agent_id: str
-    dataset: Optional[str]
-    objectives: List[str]
+    dataset: str | None
+    objectives: list[str]
     created_at: str
-    scores: Dict[str, float]
+    scores: dict[str, float]
     summary: str
 
 
@@ -46,13 +45,13 @@ class SanitizeResult(BaseModel):
 
     agent_id: str
     passed: bool
-    flagged_categories: List[str]
-    redactions: List[str]
+    flagged_categories: list[str]
+    redactions: list[str]
     message: str
 
 
 # In-memory stores; swap for persistent storage in production.
-evaluation_results: Dict[str, EvaluationResult] = {}
+evaluation_results: dict[str, EvaluationResult] = {}
 
 
 @router.post("/run", response_model=EvaluationResult)

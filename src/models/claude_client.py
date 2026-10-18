@@ -2,22 +2,22 @@
 
 import base64
 import io
-from typing import Any, AsyncGenerator, Dict, List, Optional, Union
+from collections.abc import AsyncGenerator
+from typing import Any
 
-import anthropic
 import numpy as np
 from anthropic import AsyncAnthropic
 from PIL import Image
 
 from config.config import settings
-from src.models.base_llm import BaseLLMClient, LLMResponse, Message, MessageRole
+from src.models.base_llm import BaseLLMClient, LLMResponse, Message, MessageRole, ModelCapabilities
 
 
 class ClaudeClient(BaseLLMClient):
     """Anthropic Claude client implementation."""
 
     # Model capabilities mapping
-    MODEL_CAPABILITIES = {
+    MODEL_CAPABILITIES: dict[str, ModelCapabilities] = {
         "claude-3-opus-20240229": {
             "vision": True,
             "functions": True,
@@ -64,12 +64,12 @@ class ClaudeClient(BaseLLMClient):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
-        **kwargs,
-    ):
+        api_key: str | None = None,
+        model: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        **kwargs: Any,
+    ) -> None:
         """Initialize Claude client.
 
         Args:
@@ -78,6 +78,7 @@ class ClaudeClient(BaseLLMClient):
             max_tokens: Maximum tokens to generate
             temperature: Temperature for sampling
             **kwargs: Additional parameters
+
         """
         # Use settings as defaults
         config = settings.get_llm_config("anthropic")
@@ -93,10 +94,10 @@ class ClaudeClient(BaseLLMClient):
 
     async def generate(
         self,
-        messages: List[Message],
-        system_prompt: Optional[str] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        **kwargs,
+        messages: list[Message],
+        system_prompt: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        **kwargs: Any,
     ) -> LLMResponse:
         """Generate a response from Claude.
 
@@ -108,6 +109,7 @@ class ClaudeClient(BaseLLMClient):
 
         Returns:
             LLMResponse object
+
         """
         # Convert messages to Claude format
         claude_messages = self._convert_messages_to_claude(messages)
@@ -176,7 +178,7 @@ class ClaudeClient(BaseLLMClient):
         )
 
     async def generate_stream(
-        self, messages: List[Message], system_prompt: Optional[str] = None, **kwargs
+        self, messages: list[Message], system_prompt: str | None = None, **kwargs: Any
     ) -> AsyncGenerator[str, None]:
         """Generate a streaming response from Claude.
 
@@ -187,6 +189,7 @@ class ClaudeClient(BaseLLMClient):
 
         Yields:
             Response chunks
+
         """
         claude_messages = self._convert_messages_to_claude(messages)
 
@@ -205,7 +208,7 @@ class ClaudeClient(BaseLLMClient):
                 yield text
 
     async def generate_with_image(
-        self, prompt: str, image: Union[str, bytes, Image.Image, np.ndarray], **kwargs
+        self, prompt: str, image: str | bytes | Image.Image | np.ndarray, **kwargs: Any
     ) -> LLMResponse:
         """Generate a response based on text and image input.
 
@@ -216,6 +219,7 @@ class ClaudeClient(BaseLLMClient):
 
         Returns:
             LLMResponse object
+
         """
         if not self.supports_vision:
             raise ValueError(f"Model {self.model} does not support vision inputs")
@@ -244,8 +248,8 @@ class ClaudeClient(BaseLLMClient):
         return await self.generate(messages, **kwargs)
 
     async def generate_embeddings(
-        self, text: Union[str, List[str]], **kwargs
-    ) -> Union[List[float], List[List[float]]]:
+        self, text: str | list[str], **kwargs: Any
+    ) -> list[float] | list[list[float]]:
         """Generate embeddings for text.
 
         Note: Claude doesn't have a native embedding API.
@@ -257,6 +261,7 @@ class ClaudeClient(BaseLLMClient):
 
         Raises:
             NotImplementedError: Claude doesn't support embeddings
+
         """
         raise NotImplementedError(
             "Claude doesn't have a native embedding API. "
@@ -271,12 +276,13 @@ class ClaudeClient(BaseLLMClient):
 
         Returns:
             Estimated number of tokens
+
         """
         # Claude uses a similar tokenization to GPT models
         # Rough estimation: 1 token ≈ 4 characters
         return len(text) // 4
 
-    def _convert_messages_to_claude(self, messages: List[Message]) -> List[Dict[str, Any]]:
+    def _convert_messages_to_claude(self, messages: list[Message]) -> list[dict[str, Any]]:
         """Convert messages to Claude format.
 
         Args:
@@ -284,6 +290,7 @@ class ClaudeClient(BaseLLMClient):
 
         Returns:
             List of Claude-formatted messages
+
         """
         claude_messages = []
 
@@ -296,6 +303,7 @@ class ClaudeClient(BaseLLMClient):
             role = "user" if msg.role == MessageRole.USER else "assistant"
 
             # Handle content
+            content: str | list[dict[str, Any]]
             if isinstance(msg.content, str):
                 content = msg.content
             elif isinstance(msg.content, list):
@@ -309,7 +317,7 @@ class ClaudeClient(BaseLLMClient):
         return claude_messages
 
     def _process_image_for_claude(
-        self, image: Union[str, bytes, Image.Image, np.ndarray]
+        self, image: str | bytes | Image.Image | np.ndarray
     ) -> tuple[str, str]:
         """Process image for Claude API.
 
@@ -318,8 +326,10 @@ class ClaudeClient(BaseLLMClient):
 
         Returns:
             Tuple of (base64_string, media_type)
+
         """
         # Convert to PIL Image first
+        pil_image: Image.Image
         if isinstance(image, str):
             pil_image = Image.open(image)
         elif isinstance(image, bytes):
@@ -352,7 +362,7 @@ class ClaudeClient(BaseLLMClient):
 
         return base64_string, media_type
 
-    def _extract_content(self, response) -> str:
+    def _extract_content(self, response: Any) -> str:
         """Extract text content from Claude response.
 
         Args:
@@ -360,6 +370,7 @@ class ClaudeClient(BaseLLMClient):
 
         Returns:
             Extracted text content
+
         """
         if hasattr(response, "content"):
             if isinstance(response.content, str):
@@ -379,17 +390,17 @@ class ClaudeClient(BaseLLMClient):
     @property
     def supports_functions(self) -> bool:
         """Check if model supports function calling."""
-        return self.MODEL_CAPABILITIES.get(self.model, {"functions": False})["functions"]
+        return self.MODEL_CAPABILITIES.get(self.model, {}).get("functions", False)
 
     @property
     def supports_vision(self) -> bool:
         """Check if model supports vision inputs."""
-        return self.MODEL_CAPABILITIES.get(self.model, {"vision": False})["vision"]
+        return self.MODEL_CAPABILITIES.get(self.model, {}).get("vision", False)
 
     @property
     def supports_streaming(self) -> bool:
         """Check if model supports streaming."""
-        return self.MODEL_CAPABILITIES.get(self.model, {"streaming": True})["streaming"]
+        return self.MODEL_CAPABILITIES.get(self.model, {}).get("streaming", True)
 
     @property
     def max_context_length(self) -> int:
