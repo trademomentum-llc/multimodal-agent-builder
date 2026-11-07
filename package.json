@@ -59,7 +59,7 @@
   },
   "overrides": {
     "flatted": "^3.4.2",
-    "qs": "^6.16.0",
+    "qs": "^6.17.1",
     "postcss": "^8.5.23",
     "path-to-regexp": "^8.4.2",
     "ip-address": "^10.7.6",
