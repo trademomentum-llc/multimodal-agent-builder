@@ -54,7 +54,7 @@
     "node-cron": "^4.6.0",
     "openai": "^6.49.0",
     "openid-client": "^6.8.8",
-    "sanitize-html": "^2.17.7",
+    "sanitize-html": "^2.18.1",
     "zod": "^3.25.76"
   },
   "overrides": {
