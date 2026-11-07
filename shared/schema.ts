@@ -605,6 +605,7 @@ export const insertAgentTypeSchema = createInsertSchema(agentTypes).omit({
 
 export const insertAgentSchema = createInsertSchema(agents, {
   imageDetail: z.enum(['auto', 'low', 'high']).nullable().optional(),
+  securityConfig: z.custom<AgentSecurityConfig>().nullable().optional(),
 }).omit({
   id: true,
   createdAt: true,
